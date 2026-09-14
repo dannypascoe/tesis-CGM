@@ -119,35 +119,73 @@ One of the main challenges when working with time series captured online using s
 % =================================================
 \chapter{Introducción}
 
-
-
 \section{Contexto general del problema}
+\label{sec:contexto_general}
 
+La diabetes mellitus tipo 1 (DT1) resulta de la destrucción autoinmune de las células $\beta$ del páncreas, lo que suprime la producción endógena de insulina y obliga a quienes la padecen a depender de su administración exógena durante el resto de la vida. Ajustar esa dosis exige conocer con precisión la concentración de glucosa en cada momento, una tarea que durante décadas dependió de mediciones capilares esporádicas, incapaces de seguir la dinámica real de la glucemia entre una punción y la siguiente.
+
+Los sistemas de monitoreo continuo de glucosa (CGM) cambiaron ese panorama al estimar la glucosa intersticial cada pocos minutos y ofrecer así una trayectoria casi continua de la variable~\cite{cobelli2009diabetes}. Esta resolución temporal habilita decisiones que antes eran impracticables: anticipar una hipoglucemia antes de que se manifieste, ajustar la insulina en función de la tendencia y no solo del valor puntual, o alimentar algoritmos de control en lazo cerrado que automatizan parte de la dosificación, un escenario en el que detectar los fallos del sensor se vuelve una condición de seguridad tan relevante como la propia lógica de control~\cite{sanchez2025imputation}. El consenso internacional de la American Diabetes Association (ADA) y la European Association for the Study of Diabetes (EASD) formalizó en 2019 un conjunto de métricas —tiempo en rango, tiempo por debajo y por encima del rango, variabilidad glucémica— que hoy orientan tanto la práctica clínica como la evaluación de nuevos algoritmos de control~\cite{battelino2019}. Todas ellas comparten un supuesto que rara vez se hace explícito: que la señal reportada por el sensor refleja fielmente la glucosa real del paciente.
+
+Ese supuesto falla con más frecuencia de la deseada. Un sensor de CGM puede interrumpir la transmisión durante horas, o bien continuar transmitiendo valores contaminados por ruido electrónico, interferencia electromagnética o el desplazamiento leve de la interfaz con el tejido subcutáneo. Cuando cualquiera de estos fallos pasa inadvertido, contamina tanto la interpretación clínica del paciente como los algoritmos automáticos que dependen de la señal, y lo hace justo en los instantes —cambios rápidos de glucosa, desconexiones prolongadas— en los que una decisión errónea resulta más costosa. Detectar estos fallos en línea y reconstruir la señal con un criterio fisiológicamente coherente termina siendo, por ello, una condición tan relevante para la seguridad del paciente como la exactitud misma del sensor.
 
 \section{Planteamiento del problema de investigación}
+\label{sec:planteamiento_problema}
+
+Frente al problema descrito en la Sección~\ref{sec:contexto_general}, la literatura ha comenzado a explorar sistemas de detección e imputación en línea basados en redes neuronales profundas que combinan la señal de glucosa con variables fisiológicas de entrada, como la insulina administrada y los carbohidratos ingeridos. El trabajo previo del grupo de investigación~\cite{sanchez2025imputation} constituye, dentro de esa línea, un antecedente directo: compara cuatro arquitecturas —CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM— bajo un protocolo de inyección controlada de fallos y reporta, para la mejor configuración, un F1-score superior a 0.87 en la detección y un error medio absoluto de imputación por debajo de 3~mg/dL. Estos resultados confirman que el enfoque es viable, pero dejan también expuestas tres limitaciones que esta tesis toma como punto de partida.
+
+Primero, la decisión de marcar una lectura como fallo se apoya en un umbral fijo de 10~mg/dL, idéntico para cualquier nivel de glucosa y cualquier velocidad de cambio de la señal. Un umbral constante no distingue, sin embargo, dos fuentes de variación bien documentadas: la norma ISO 15197~\cite{iso15197_2013} establece tolerancias distintas para la hipoglucemia y para el resto del rango glucémico, y las predicciones de la red se degradan de forma transitoria durante una excursión posprandial rápida, exista o no un fallo real del sensor. Segundo, la misma arquitectura que genera la predicción usada para detectar el fallo produce también el valor de reemplazo cuando este ocurre, aunque detectar y reconstruir sean tareas de naturaleza distinta —clasificación en un caso, regresión en el otro— que no necesariamente favorecen a la misma red. La validación sobre datos clínicos reales, en tercer lugar, se limitó a un único paciente del conjunto OhioT1DM y se reportó solo en términos de métricas de clasificación, sin conectar los resultados con los indicadores clínicos estandarizados que en la práctica determinan si un sistema de este tipo es útil para el manejo de la diabetes.
+
+Estas limitaciones acotan el problema que esta tesis aborda: establecer si el esquema de detección e imputación en línea puede extenderse en tres direcciones —dotar al umbral de decisión de una dependencia explícita del contexto glucémico, separar la detección y la imputación en arquitecturas seleccionadas de forma independiente para cada tarea, y ampliar la validación sobre datos reales hasta un punto en el que sea posible reportar indicadores clínicos estandarizados— sin sacrificar el desempeño ya demostrado por el sistema del que parte. Los Capítulos 3 y 4 desarrollan y evalúan, respectivamente, la propuesta y sus resultados.
 
 
 \section{Justificación}
+\label{sec:justificacion}
+
+Un sistema que detecte fallos del sensor y reconstruya la señal de CGM en línea no es un ejercicio exclusivamente técnico: la calidad de esa señal condiciona decisiones terapéuticas que se toman varias veces al día, desde la dosis de insulina hasta la respuesta ante una alerta de hipoglucemia. Un falso negativo en la detección —un fallo que pasa como lectura válida— puede traducirse en una decisión clínica tomada sobre datos erróneos. Un falso positivo, en cambio, sustituye una lectura genuina por una predicción del modelo y descarta información real del paciente. Ambos errores tienen costo clínico, y ese costo justifica por sí solo dedicar un esfuerzo de investigación a reducirlos.
+
+A esa motivación clínica se suma una carencia identificable en el estado del arte: como se discutió en la Sección~\ref{sec:planteamiento_problema}, pocos trabajos integran detección de fallos e imputación en un mismo esquema apoyado en variables fisiológicas, y menos todavía evalúan ese esquema bajo un umbral adaptado al contexto glucémico o con arquitecturas especializadas por tarea. Cerrar esa carencia, incluso de forma parcial, amplía lo que se sabe sobre cómo estructurar sistemas de este tipo para su eventual uso en dispositivos comerciales o en algoritmos de control en lazo cerrado.
+
+La factibilidad del proyecto, por su parte, no depende únicamente de argumentos teóricos. El grupo de investigación cuenta con una base de código validada y con datos simulados y reales previamente procesados, producto del trabajo publicado en~\cite{sanchez2025imputation}, cuyas métricas de detección y de imputación superaron de manera consistente a los métodos de referencia considerados en ese mismo estudio (ARIMA y una red convolucional temporal). Partir de una infraestructura que ya demostró ese desempeño reduce el riesgo técnico del proyecto y permite concentrar el esfuerzo de esta tesis en las tres extensiones descritas en la Sección~\ref{sec:planteamiento_problema}, en lugar de reconstruir el sistema desde cero.
 
 
 \section{Hipótesis}
+\label{sec:hipotesis}
 
+La hipótesis de este trabajo es que sustituir el umbral fijo de detección por uno que se adapte al contexto glucémico, y evaluar de manera independiente las combinaciones posibles entre detector e imputador, produce un sistema de detección e imputación en línea con mejor desempeño técnico que el esquema unificado y de umbral fijo del trabajo previo: menos falsos positivos en la detección de fallos y una reconstrucción de la señal más precisa.
 
+Se espera también que esta mejora técnica no se quede en las métricas de señal. Al evaluar el sistema propuesto sobre un conjunto más amplio de pacientes reales de OhioT1DM, y no solo sobre el paciente único que consideró el trabajo previo, los indicadores clínicos de control glucémico --tiempo en rango, variabilidad, riesgo de hipo o hiperglucemia-- deberían reflejar una ganancia consistente con la mejora observada a nivel de señal.
 
 \section{Objetivos}
+\label{sec:objetivos}
 
 \subsection{Objetivo General}
+\label{subsec:objetivo_general}
+
+Desarrollar y validar un sistema de detección de fallos e imputación en línea para señales de monitoreo continuo de glucosa, basado en redes neuronales profundas que integran como entradas la glucosa histórica, la insulina administrada y los carbohidratos ingeridos, con el fin de mejorar la confiabilidad de la señal reportada y, con ello, la seguridad de las decisiones terapéuticas que dependen de ella en personas con DT1.
+
 
 \subsection{Objetivos Específicos}
-
 \begin{itemize}
-    \item Comparar el desempeño de redes neuronales profundas con métodos tradicionales en la imputación de datos faltantes.
-    \item Evaluar la precisión de imputación generada por redes neuronales profundas utilizando métricas cuantitativas.
-    \item Medir el impacto de los métodos de imputación en la calidad de modelos predictivos, entrenados con los datos imputados.
-    \item Identificar los escenarios o tipos de datos en los que las redes neuronales profundas ofrecen ventajas significativas sobre otras técnicas.
+    \item Implementar y entrenar las cuatro arquitecturas profundas (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) empleadas como base para las tareas de detección de fallos e imputación, verificando la estabilidad de su desempeño frente a distintas inicializaciones.
+
+    \item Diseñar y validar un umbral de detección adaptativo al contexto glucémico, y comparar su desempeño frente al umbral fijo utilizado en el trabajo previo.
+
+    \item Evaluar de forma desacoplada las combinaciones posibles entre detector e imputador, para determinar si ambas tareas pueden optimizarse de manera independiente e identificar así la configuración global más adecuada.
+
+    \item Cuantificar el impacto clínico del sistema propuesto mediante indicadores de control glucémico --tiempo en rango, variabilidad y GMI-- sobre datos simulados, y extender esa evaluación a datos reales del conjunto OhioT1DM.
 \end{itemize}
 
 \section{Alcances y limitaciones}
+\label{sec:alcances_limitaciones}
+
+La validación experimental de este trabajo se hizo en dos etapas. En la primera se usaron datos sintéticos generados con el modelo fisiológico de Sorensen, sobre los cuales se probaron de forma exhaustiva el umbral adaptativo y el pipeline desacoplado, en un entorno donde los escenarios de fallo se controlan por diseño. En la segunda etapa se llevó el sistema resultante --ya con los parámetros fijados en la primera-- a datos reales del conjunto OhioT1DM, donde las fallas de sensor ocurren de forma natural y no se pueden ajustar a conveniencia. Este orden implica que la calibración del sistema se hizo sobre la señal sintética, y que su capacidad de generalizar a datos reales es, en sí misma, parte de lo que se evalúa en la segunda etapa y no algo que se dé por sentado.
+
+Las cuatro arquitecturas evaluadas --CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM-- son las mismas del trabajo previo del grupo, con capas e hiperparámetros de entrenamiento idénticos. Esta tesis no explora arquitecturas nuevas: la variable de interés es el esquema de detección e imputación --fijo frente a adaptativo, unificado frente a desacoplado-- y modificar al mismo tiempo las arquitecturas impediría atribuir con claridad las diferencias de desempeño a una sola causa. Los parámetros del umbral
+adaptativo se mantuvieron iguales para las cuatro, priorizando una configuración unificada sobre un ajuste fino por arquitectura.
+
+A esta validación se suma una restricción propia del conjunto OhioT1DM: al no incluir una traza de glucosa de referencia, la evaluación sobre datos reales se limita a métricas de clasificación y a una revisión cualitativa de la imputación, sin que sea posible reportar ahí un error de reconstrucción en mg/dL como sí ocurre con los datos sintéticos.
+
+Quedan fuera del alcance de esta tesis la implementación del sistema en un dispositivo embebido y su integración en un lazo de control de insulina en tiempo real. Ambos puntos son relevantes para llevar este trabajo a unescenario clínico o comercial, pero requieren un desarrollo de ingeniería y una validación regulatoria que corresponden a una etapa posterior, no a esta tesis.
 
 % =================================================
 % CAPÍTULO 2. MARCO TEÓRICO Y ESTADO DEL ARTE
@@ -1749,7 +1787,7 @@ La elección entre ambas depende del objetivo clínico: minimizar el error medio
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{figuras/fig_44_frente_pareto.eps}
+\includegraphics[width=\textwidth]{figures/fig_4_4_pareto_F1_RMSE.eps}
 \caption{Las 16 combinaciones detector\,$\times$\,imputador en el plano $F_1$ (detección) frente a MAE (imputación, D1). La estructura de rejilla evidencia la independencia entre módulos. Se resaltan las configuraciones co-óptimas GRU\,$\rightarrow$\,GRU y GRU\,$\rightarrow$\,1D-CNN.}
 \label{fig:44-frente}
 \end{figure}
