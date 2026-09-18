@@ -17,7 +17,7 @@ clear; clc; close all;
 
 %% ===================== AGREGAR CARPETAS AL PATH =====================
 % OPCIÓN 1: Ruta manual (MODIFICAR SEGÚN TU UBICACIÓN)
-scriptPath = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project';
+scriptPath = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project\matlab';
 
 % OPCIÓN 2: Automática (solo funciona si ejecutas el script COMPLETO, no por secciones)
 % scriptPath = fileparts(mfilename('fullpath'));

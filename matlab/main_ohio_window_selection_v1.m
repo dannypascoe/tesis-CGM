@@ -28,7 +28,7 @@ clear; clc; close all;
 %% ===================== CONFIGURACION =====================
 
 % ID del paciente a procesar (elegir manualmente)
-patient_id = '559';        % <<< CAMBIAR AQUI
+patient_id = '540';        % <<< CAMBIAR AQUI 559 listo
 
 % Duracion de la ventana a seleccionar, en dias
 window_days = 5;

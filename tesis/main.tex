@@ -62,7 +62,7 @@ neuronales profundas y variables fisiológicas}
   
   \begin{figure} [H]
 	\begin{center}
-	\includegraphics[width=0.3\textwidth]{udgb (1).png}
+	\includegraphics[width=0.3\textwidth]{figures/udg_logo.png}
 	\end{center}
   \end{figure}
   \vspace{0.25cm}
@@ -193,21 +193,59 @@ Quedan fuera del alcance de esta tesis la implementación del sistema en un disp
 \chapter{Marco Teórico y Estado del Arte}
 
 \section{Diabetes mellitus tipo 1 y sistemas CGM}
+\label{sec:dmt1_cgm}
+ 
+La diabetes mellitus tipo 1 (DMT1) se origina por la destrucción autoinmune de las células $\beta$ de los islotes de Langerhans, el tejido pancreático encargado de secretar insulina \cite{cobelli2009diabetes}. Suele aparecer en la infancia o la adolescencia, aunque no está restringida a esas edades, y se caracteriza por una deficiencia absoluta de insulina endógena. Sin el aporte exógeno de esta hormona, la hiperglucemia sostenida deriva en complicaciones microvasculares —retinopatía, nefropatía— y en un riesgo cardiovascular elevado.
+ 
+El reto terapéutico, sin embargo, no se reduce a evitar la hiperglucemia. Administrar insulina exógena sin la retroalimentación que ofrecería un páncreas funcional expone al paciente al riesgo opuesto: una dosis ligeramente mayor a la necesaria puede inducir hipoglucemia, un evento agudo cuyas consecuencias inmediatas suelen ser más graves que las de una elevación crónica de glucosa. Esta tensión entre un riesgo inmediato y otro acumulativo atraviesa el diseño de los sistemas de monitoreo y control que se revisan en este capítulo.
+ 
+Los sistemas de monitoreo continuo de glucosa (CGM) responden a esa necesidad de vigilancia constante. A diferencia de la punción capilar, que entrega una lectura puntual, un sensor CGM sigue la trayectoria de la glucosa a lo largo del día. La medición no es directa: el dispositivo estima la concentración de glucosa en sangre a partir del líquido intersticial mediante un electrodo subcutáneo, y actualiza esa estimación cada pocos minutos. Esa frecuencia habilita algo antes poco práctico: seguir la tendencia de la glucosa en vez de una sola lectura aislada. Con ella se puede decidir sobre la dosis de insulina o el momento de comer con información cercana al tiempo real \cite{cobelli2009diabetes}.
+ 
+La adopción de estos sensores impulsó el desarrollo de sistemas de administración automática de insulina, los llamados páncreas artificiales. Su utilidad clínica depende, con todo, de qué tan bien esa estimación intersticial refleje la glucosa real. Huang et al. evaluaron un sistema de monitoreo intermitente (FreeStyle Libre Pro) contra muestras de glucosa venosa en 122 pacientes críticos y reportaron una diferencia absoluta relativa media (MARD) de 18\%, con la mayor discrepancia concentrada en el rango hipoglucémico: 33.1\%, frente a 16.3\% en hiperglucemia \cite{huang2022accuracy}. El análisis de rejilla de error de Clarke, no obstante, ubicó más del 98\% de las lecturas en zonas clínicamente aceptables. 
 
 \section{Fallos en sensores y datos faltantes en series temporales multivariadas}
+\label{sec:fallos_datos_faltantes}
+ 
+Un sensor CGM no falla de una sola manera. Facchinetti et al. \cite{facchinetti2013} distinguen dos anomalías que alteran directamente la lectura: el \textit{spike}, una lectura aislada cuyo error supera ampliamente el ruido normal del sensor (del orden de 15--20 mg/dL en los  casos documentados), y la pérdida transitoria de sensibilidad, una subestimación sostenida durante varias muestras consecutivas, de hasta 20--25 mg/dL y más frecuente durante la noche. Ambas se originan en la interfaz mecánica entre el sensor y el tejido subcutáneo --el movimiento del paciente, la presión sobre el sitio de inserción-- y no en un error del algoritmo de estimación. Los mismos autores sitúan una tercera fuente de fallo en la bomba de infusión de insulina, responsable de cerca del 20\% de los eventos del sistema completo, con un efecto sobre la glucosa que tarda entre 40 y 50 minutos en manifestarse por la farmacocinética de la insulina; este trabajo se limita a la señal CGM, de modo que ese componente queda fuera de su alcance.
+ 
+Que estos fallos sean comunes no es una suposición de laboratorio. Markov et al. \cite{markov2024} encuestaron a 99 usuarios de CGM en una clínica de diabetes: 85.4\% reportó al menos un malfuncionamiento del sensor en el año anterior, y las cifras de inserción defectuosa (63.5\%) y desprendimiento (61.4\%) tampoco fueron menores. Solo el 14.6\% no experimentó ninguna interrupción en todo el período. Una parte de estas interrupciones, además, no se origina en el sensor mismo: el retiro del dispositivo por estudios de imagen ocurrió en 41.7\% de los casos, muy por encima de lo atribuible a cirugías o a hospitalización. Las consecuencias no quedan solo en el plano técnico: 36.5\% de los encuestados reportó hiperglucemia atribuible a estas interrupciones cuatro o más veces al año, y 12.4\% hipoglucemia con la misma frecuencia, aunque conviene matizar que se trata de datos autorreportados en un único centro académico, con el sesgo de selección que ello implica.
+ 
+Estos fallos, además de frecuentes, resultan difíciles de capturar por el monitoreo convencional. Zhao y Fu \cite{zhao2015statistical} señalan que los sistemas CGM comerciales comparan cada lectura contra umbrales fijos de hipo o hiperglucemia, sin verificar en ningún momento si esa lectura es en sí misma confiable. Una lectura corrupta que permanece dentro del rango considerado normal no dispara ninguna alarma, y tanto el paciente como un eventual algoritmo de control terminan actuando sobre un dato que nunca debió tratarse como válido. Los autores llaman a esto la diferencia entre un monitoreo de ``bajo nivel'', que solo despliega el valor, y uno de ``alto nivel'', capaz de juzgar si ese valor merece confianza antes de usarlo; la Sección~\ref{sec:deteccion_error_modelo} retoma ese segundo nivel.
+ 
+Formalizado como problema estadístico, lo que ocurre en ambos tipos de fallo es un dato faltante encubierto: la señal existe, pero su valor no corresponde a la magnitud fisiológica real. Rubin \cite{rubin1976} sentó las bases de esta distinción, consolidada después por Little y Rubin \cite{littlerubin2002} en tres mecanismos. El primero, MCAR, ocurre cuando la ausencia de un dato no depende de ningún valor, ni observado ni faltante. El segundo, MAR, ocurre cuando esa ausencia depende de información que sí quedó registrada --la hora del día, por ejemplo, o la actividad del paciente. El tercero, MNAR, es el más difícil de ignorar sin sesgar el análisis: la probabilidad de que un valor falte depende del propio valor no observado, como ocurriría si la exactitud del sensor se degradara en los extremos del rango glucémico, según reportan Huang et al. \cite{huang2022accuracy}.
+ 
+Detectar el fallo no resuelve, sin embargo, cuánta pérdida de datos puede tolerar la interpretación clínica antes de dejar de ser confiable. den Braber et al. \cite{denbraber2024} abordan esa pregunta sobre un cohorte de 92 pacientes, introduciendo pérdidas sintéticas de entre 5\% y 50\% en registros de 7 a 28 días y comparando las métricas resultantes contra los criterios de un panel de expertos. El resultado no es uniforme entre métricas: con 30\% de pérdida sobre 14 días, el tiempo en rango, el coeficiente de variación y el indicador de manejo de glucosa (GMI) permanecen prácticamente inalterados, mientras que el tiempo bajo rango (TBR) se interpreta erróneamente en 5.0\% de los registros, cifra que sube a 9.6\% cuando el paciente tiene un GMI bajo. Esa jerarquía de fragilidad --las métricas de hipoglucemia son las primeras en degradarse-- importa para cualquier sistema que aspire a validarse sobre indicadores clínicos, no solo sobre el error de reconstrucción de la señal.
+ 
+El problema, además, no se limita a una serie univariada. Facchinetti et al. \cite{facchinetti2013} ya tratan la señal CGM y la infusión de insulina como dos flujos simultáneos para su predictor, y Cobelli et al. \cite{cobelli2009diabetes} describen esa misma relación --glucosa, insulina, carbohidratos-- como parte de un sistema de retroalimentación fisiológica único. Cuando el sensor falla, no se pierde solo un valor escalar de glucosa: se pierde la coherencia entre esa señal y las series con las que un modelo se entrena e infiere, y el mecanismo de missingness puede no ser el mismo para cada una de ellas. Imputar la glucosa sin considerar qué aportan las otras dos series renuncia a la información que precisamente motiva usar arquitecturas capaces de aprender esa dependencia conjunta.
 
-%% 2.4
+
 \section{Métodos tradicionales de imputación y sus limitaciones}
+\label{sec:metodos_imputacion_tradicional}
+ 
+Frente a un dato faltante, la salida estadística más extendida no ha sido descartarlo sino estimarlo. Existen varias técnicas para hacerlo (media/ mediana, regresión y EM, entre las más usadas), y la mayoría son anteriores a MICE y PPCA, los dos métodos en los que se centra esta sección. Sustituir el valor ausente por la media o la mediana de la variable es la solución más simple; ajustar una regresión con las demás variables mejora algo esa estimación; pero la base más sólida de todas es el algoritmo de Esperanza-Maximización (EM), que alterna entre estimar los valores faltantes y ajustar el modelo a los datos ya completados, repitiendo el proceso hasta que las estimaciones se estabilizan \cite{sun2023deep}. MICE y PPCA (imputación múltiple por ecuaciones encadenadas y análisis de componentes principales probabilístico) son los dos métodos que, construidos sobre esa base, más se usan hoy en el ámbito clínico y biomédico \cite{hegde2019mice, zhang2016multiple}. Comparados con las técnicas más simples mencionadas arriba, ambos comparten una ventaja de fondo: aprovechan la relación entre las variables observadas para producir una estimación, en lugar de tratar cada variable de forma aislada.
+ 
+MICE resuelve el problema variable por variable. La que tiene datos faltantes se modela como respuesta y el resto como predictores, usando el modelo que corresponda al tipo de variable --regresión logística si es binaria, \textit{predictive mean matching} si es continua-- y variantes equivalentes para las demás \cite{zhang2016multiple}. El proceso se repite en iteraciones sucesivas hasta que las estimaciones convergen, y esa convergencia constituye una imputación; varias imputaciones generan conjuntos de datos completos independientes cuyos resultados finales se combinan.
+ 
+PPCA sigue otra lógica, y viene de otro campo: su uso es más frecuente en estudios de tráfico y transporte que en el ámbito clínico, y solo después se trasladó a la imputación de datos de salud \cite{hegde2019mice}. En vez de modelar variable por variable, reduce la dimensionalidad del conjunto completo mediante componentes principales, y sobre esa versión comprimida aplica el mismo algoritmo de Esperanza-Maximización descrito arriba para estimar, de forma iterativa, el valor más probable de cada dato ausente.
+ 
+Cuál de los dos rinde mejor no se responde solo describiendo el algoritmo, y ahí es donde la comparación de Hegde et al. \cite{hegde2019mice} aporta algo concreto. Sobre un conjunto real de 41{,}543 pacientes, con 30\% de datos faltantes introducidos bajo el mecanismo MCAR, PPCA imputó correctamente 65\% de las variables con un RMSE de 0.29; MICE, 38\%, con un RMSE de 0.83. Parte de esa diferencia se explica por el diseño del experimento, no por el método en sí: MICE asume que la ausencia es MAR, y los propios autores atribuyen su desempeño más bajo a que la ausencia introducida fue MCAR, un mecanismo distinto al que el método presupone. Otro factor, aparte, jugó en su contra: su precisión se degrada cuando la proporción de datos faltantes por variable supera 30\%, y en este estudio rondaba 50\% en cada variable.
+ 
+Un solo experimento sobre un solo tipo de dato no cierra la pregunta, y Sun et al. \cite{sun2023deep} la retoman a mayor escala, comparando MICE y missForest contra métodos generativos de aprendizaje profundo (GAIN, VAE) bajo los tres mecanismos de ausencia (MCAR, MAR, MNAR) y sobre distintos tipos y tamaños de conjuntos tabulares. El resultado va en sentido contrario al de Hegde et al., y también desafía la intuición: para tamaños de muestra pequeños o moderados, MICE y missForest superaron consistentemente a los métodos de aprendizaje profundo, que además resultaron sensibles al tipo de mecanismo de ausencia --VAE, en particular, cayó en un colapso del modelo, con predicciones que dejaron de variar según la entrada--. Sun et al. señalan, además, un punto débil de MICE que no depende del mecanismo de ausencia: especificar el modelo de cada variable exige saber de antemano cómo se relaciona con las demás, algo que rara vez es evidente; si esa suposición es incorrecta, el sesgo se traslada a los resultados, sobre todo bajo MNAR.
+ 
+Lo que conecta a ambos estudios, más allá de sus conclusiones distintas, es el tipo de dato sobre el que operan: en los dos casos, cada fila del conjunto junta variables medidas en el mismo momento, relacionadas entre sí pero sin que una dependa del valor pasado de otra. Ninguno de los métodos revisados hasta aquí --ni EM, ni MICE, ni PPCA, ni los generativos que evalúan Sun et al.-- se prueba sobre un sistema donde una variable afecta a otra después de un intervalo conocido, como ocurre entre la insulina administrada y la glucosa plasmática (Sección~\ref{sec:fallos_datos_faltantes}). Esto no permite anticipar que fallarían frente a esa estructura --no hay, dentro de lo revisado aquí, evidencia que lo confirme o lo descarte--, pero sí deja abierta la pregunta de cómo se comporta la imputación cuando el mecanismo que genera los datos es un sistema no lineal con entradas externas que tardan en manifestar su efecto, como el que describen Cobelli et al. \cite{cobelli2009diabetes} para la dinámica glucosa-insulina-carbohidratos.
+ 
+A esa pregunta abierta se suman dos límites de MICE y PPCA que no dependen del tipo de dato al que se apliquen. Ninguno está pensado para recibir una lectura nueva cada pocos minutos y decidir, en ese instante, si debe sustituirla: repetir el proceso completo después de cada muestra --recalcular las regresiones encadenadas, reentrenar la descomposición en componentes-- no sería viable en un sistema que opera en línea. Y la regresión sobre la que se apoya MICE, junto con la reducción lineal de dimensionalidad de la que parte PPCA, no tiene forma de representar que una variable afecte a otra con retraso. Ese es el terreno --un sistema no lineal que, además, necesita actualizarse en tiempo real-- donde las siguientes secciones sitúan a las redes neuronales profundas y otras técnicas de aprendizaje automático como alternativa a explorar.
 
-
+%%%%% 2.4
 \section{Redes neuronales profundas para series temporales} % (del paper, sec. 3)
 \label{sec:redes_neuronales_profundas}
 
-En esta sección se introducen las arquitecturas de aprendizaje profundo empleadas para la imputación en línea de datos corruptos en sensores de CGM. Específicamente, se presentan los modelos basados en LSTM, GRU, 1D-CNN y Transformer. Para cada arquitectura se describen sus principios de operación, las formulaciones matemáticas centrales y su relevancia para la imputación de datos de CGM en tiempo real.
+Este trabajo recurre a cuatro arquitecturas de aprendizaje profundo para la imputación en línea de señales CGM corruptas: LSTM, GRU, 1D-CNN y Transformer. Las cuatro comparten el mismo problema --predecir el siguiente valor de glucosa a partir de una ventana de observación reciente-- pero lo resuelven con mecanismos distintos, desde las compuertas recurrentes hasta la atención sin recurrencia. Las subsecciones siguientes describen cada una junto con las ecuaciones que definen su operación.
 
 \subsection{Long Short-Term Memory (LSTM)}
 \label{subsec:lstm}
-Las redes LSTM son una variante especializada de las redes neuronales recurrentes (RNN) diseñadas para capturar dependencias temporales tanto de corto como de largo plazo en datos secuenciales. A diferencia de las RNN convencionales, que suelen verse afectadas por el problema del desvanecimiento del gradiente, las LSTM introducen una celda de memoria regulada por tres compuertas —de entrada, de olvido y de salida— que controlan el flujo de información a lo largo del tiempo. Estos mecanismos determinan qué información se conserva, se actualiza o se descarta, permitiendo que la red mantenga un contexto relevante a través de secuencias extensas~\cite{siami2019performance}.
+
+Las redes LSTM son una variante especializada de las redes neuronales recurrentes (RNN), diseñada para capturar dependencias temporales de corto y de largo plazo en datos secuenciales sin sufrir el desvanecimiento del gradiente que afecta a las RNN convencionales. Lo logran mediante una celda de memoria regulada por tres compuertas --de entrada, de olvido y de salida-- que en conjunto deciden qué información entra, cuál se descarta y cuál se conserva de un paso de tiempo al siguiente~\cite{siami2019performance}.
 
 Formalmente, las operaciones dentro de una celda LSTM se describen mediante las siguientes ecuaciones~\cite{siami2019performance, sanchez2023realtime}:
 
@@ -223,13 +261,13 @@ h_t &= o_t \cdot \tanh(c_t)
 \end{aligned}
 \end{equation}
 
-Aquí, $x_t \in \mathbb{R}^{n_x}$ es el vector de entrada en el instante $t$ (información de glucosa, insulina e ingesta de alimentos), $h_{t-1} \in \mathbb{R}^{n_h}$ es el estado oculto anterior y $c_{t-1} \in \mathbb{R}^{n_h}$ el estado anterior de la celda. Las matrices $W_{\cdot h} \in \mathbb{R}^{n_h \times n_h}$ y $W_{\cdot x} \in \mathbb{R}^{n_h \times n_x}$ son matrices de pesos, y $b_{\cdot} \in \mathbb{R}^{n_h}$ son los vectores de sesgo asociados a cada compuerta. La activación logística $\sigma(\cdot)$ mapea valores al intervalo $[0, 1]$, controlando la activación de las compuertas, mientras que $\tanh(\cdot)$ proporciona transformaciones no lineales acotadas. La compuerta de olvido $f_t$ escala la memoria previa, la compuerta de entrada $i_t$ controla cómo se incorpora la nueva información $\tilde{c}_t$, y la compuerta de salida $o_t$ determina qué proporción de la memoria actualizada $c_t$ contribuye al nuevo estado oculto $h_t$.
+Aquí, $x_t \in \mathbb{R}^{n_x}$ es el vector de entrada en el instante $t$ (información de glucosa, insulina e ingesta de alimentos), $h_{t-1} \in \mathbb{R}^{n_h}$ es el estado oculto anterior y $c_{t-1} \in \mathbb{R}^{n_h}$ el estado anterior de la celda. Las matrices $W_{\cdot h} \in \mathbb{R}^{n_h \times n_h}$ y $W_{\cdot x} \in \mathbb{R}^{n_h \times n_x}$ son matrices de pesos, y $b_{\cdot} \in \mathbb{R}^{n_h}$ son los vectores de sesgo asociados a cada compuerta. La activación logística $\sigma(\cdot)$ mapea valores al intervalo $[0, 1]$, controlando la activación de las compuertas, mientras que $\tanh(\cdot)$ proporciona transformaciones no lineales acotadas. $f_t$ escala cuánto sobrevive de la memoria anterior; a partir de ahí, $i_t$ decide cuánta información nueva ($\tilde{c}_t$) se incorpora a esa memoria ya escalada. La compuerta de salida, $o_t$, es la que finalmente filtra qué parte de la memoria actualizada $c_t$ pasa al estado oculto $h_t$.
 
-Estos mecanismos permiten a las redes LSTM retener información relevante a lo largo de horizontes temporales prolongados, lo cual resulta particularmente valioso para modelar sistemas no lineales y variantes en el tiempo, como las señales fisiológicas. En este contexto, las LSTM son especialmente efectivas para capturar los efectos retardados de la absorción de insulina o la digestión prolongada de los alimentos, manteniendo la estabilidad durante interrupciones extendidas, ventaja que justifica su mayor costo computacional. Además, estudios previos han demostrado que el uso de curvas intermedias de absorción para insulina y carbohidratos simplifica el proceso de aprendizaje en los modelos recurrentes, mejorando la precisión predictiva al alinear la representación de entrada con la dinámica fisiológica subyacente~\cite{lindemann2020survey, munoz2021learning}.
+Esa capacidad de retener información a lo largo de horizontes extensos es la que hace atractivas a las LSTM para sistemas fisiológicos no lineales y variables en el tiempo, donde efectos como la absorción de insulina o la digestión tardan minutos en manifestarse sobre la glucosa. El costo es un mayor número de parámetros que entrenar, que esta arquitectura acepta a cambio de esa estabilidad ante interrupciones prolongadas de la señal. Representar la insulina y los carbohidratos mediante curvas intermedias de absorción, en vez de sus valores crudos, facilita ese aprendizaje al alinear la entrada con la dinámica fisiológica subyacente~\cite{lindemann2020survey, munoz2021learning}.
 
 \subsection{Gated Recurrent Units (GRU)}
 \label{subsec:gru}
-Las GRU son una variante simplificada de las redes LSTM, diseñadas para reducir la complejidad computacional sin perder la capacidad de capturar dependencias temporales. Fusionan las compuertas de entrada y de olvido en una única compuerta de actualización e introducen una compuerta de reinicio para controlar el flujo de información~\cite{dey2017gate}. Esta estructura disminuye el número de parámetros y mejora la eficiencia computacional.
+Las GRU son una variante que frente a la LSTM, simplifica la celda de memoria fusionando las compuertas de entrada y de olvido en una sola compuerta de actualización, y agrega una compuerta de reinicio para regular qué tanto del estado anterior participa en el cálculo del nuevo~\cite{dey2017gate}. El resultado son menos parámetros que entrenar y un costo computacional menor, sin sacrificar la capacidad de capturar dependencias temporales que motivó a la LSTM en primer lugar.
 
 Las operaciones de una celda GRU se definen como~\cite{dey2017gate}:
 
@@ -245,13 +283,14 @@ h_t &= (1 - z_t) \odot h_{t-1} + z_t \odot \tilde{h}_t
 
 Aquí, $x_t \in \mathbb{R}^{n_x}$ es el vector de entrada en el instante $t$, $h_t \in \mathbb{R}^{n_h}$ es el estado oculto y $\tilde{h}_t$ denota la activación candidata. Las matrices $W_{x\{z,r,h\}} \in \mathbb{R}^{n_h \times n_x}$ corresponden a los pesos asociados a la entrada, mientras que $W_{h\{z,r,h\}} \in \mathbb{R}^{n_h \times n_h}$ representan los pesos recurrentes conectados al estado oculto previo $h_{t-1} \in \mathbb{R}^{n_h}$. Los vectores $b_z, b_r, b_h \in \mathbb{R}^{n_h}$ son los términos de sesgo. Las funciones de activación $\sigma(\cdot)$ y $\tanh(\cdot)$ denotan la sigmoide y la tangente hiperbólica, respectivamente, y el producto de Hadamard ($\odot$) indica multiplicación elemento a elemento.
 
-La compuerta de actualización $z_t$ determina qué cantidad de la memoria previa se conserva, mientras que la compuerta de reinicio $r_t$ controla cuánta información pasada se ignora al calcular la activación candidata $\tilde{h}_t$. Mediante la combinación de estos dos mecanismos, las GRU modelan eficazmente dependencias de largo plazo con menos parámetros y una convergencia más rápida que las LSTM, ofreciendo un equilibrio práctico entre precisión y eficiencia.
+La compuerta de actualización $z_t$ pondera cuánto pesa la memoria previa frente al candidato nuevo, mientras que la compuerta de reinicio $r_t$ decide cuánta información pasada se ignora al construir ese candidato $\tilde{h}_t$. Con solo estas dos compuertas, la GRU alcanza una convergencia más rápida que la LSTM sin perder la capacidad de modelar dependencias de largo plazo.
 
-En este trabajo, la arquitectura GRU se implementó como una alternativa recurrente computacionalmente eficiente para la imputación en línea y la detección de fallos en datos de monitoreo continuo de glucosa (CGM). Estudios previos han mostrado que las GRU pueden alcanzar valores de RMSE más bajos y un menor sobreajuste en comparación con las LSTM y las RNN convencionales~\cite{siami2019performance, alshehri2024blood}. Su mecanismo compacto de compuertas permite un aprendizaje estable de las dependencias temporales en señales fisiológicas como la glucosa, la insulina y la ingesta de alimentos, logrando un compromiso efectivo entre precisión predictiva y latencia en tiempo real.
+En este trabajo, la arquitectura GRU se usa como alternativa recurrente para la imputación en línea y la detección de fallos en datos de CGM. Frente a la LSTM y a las RNN convencionales, reporta valores de RMSE más bajos y menor sobreajuste~\cite{siami2019performance,alshehri2024blood}, y su compuerta compacta basta para aprender de forma estable las dependencias entre la glucosa, la insulina y la ingesta de alimentos.
 
 \subsection{Redes Neuronales Convolucionales 1D (1D-CNN)}
 \label{subsec:1dcnn}
-A través de operaciones de convolución, las redes 1D-CNN capturan de forma eficiente patrones locales y temporales en datos secuenciales. Están conformadas por capas convolucionales que aplican filtros (\textit{kernels}) sobre ventanas deslizantes de las secuencias de entrada para extraer características de alto nivel relevantes para tareas de predicción~\cite{li2019convolutional, Shenfield2020rolling}. Formalmente, una convolución unidimensional se define como:
+
+A través de operaciones de convolución, las redes 1D-CNN capturan patrones locales y temporales en datos secuenciales. Están conformadas por capas convolucionales que aplican filtros (\textit{kernels}) sobre ventanas deslizantes de las secuencias de entrada para extraer características de alto nivel relevantes para tareas de predicción~\cite{li2019convolutional,Shenfield2020rolling}. Formalmente, una convolución unidimensional se define como:
 
 \begin{equation}
 \label{eq:conv1d}
@@ -267,14 +306,14 @@ donde $y_j^{(l)}$ es la salida en la posición $j$ de la capa $l$, $w_i^{(l)}$ s
      \label{fig:1dcnn}
  \end{figure}
 
-Las capas de \textit{pooling} reducen la dimensionalidad de los mapas de características al resumir vecindarios temporales pequeños, mediante \textit{max-pooling} o \textit{average-pooling}, de modo que la representación preserva las características salientes mientras se reduce la resolución. En datos de series temporales, el \textit{pooling} introduce una invariancia limitada a pequeños desplazamientos temporales, suprime el ruido de alta frecuencia mediante agregación local y disminuye el número de activaciones que se transmiten a las capas más profundas, mejorando tanto la generalización como la eficiencia computacional~\cite{Zhou2022WRR_FloodInundation_DL}.
+Las capas de \textit{pooling} reducen la dimensionalidad de los mapas de características resumiendo vecindarios temporales pequeños --mediante \textit{max-pooling} o \textit{average-pooling}--, de modo que la representación conserva los rasgos más salientes mientras baja la resolución. En una serie temporal esto tiene dos efectos prácticos: pequeños desplazamientos en el tiempo dejan de alterar la salida, y el ruido de alta frecuencia se atenúa por la propia agregación local. Menos activaciones llegan entonces a las capas siguientes, lo que reduce tanto el costo de cómputo como el riesgo de sobreajuste~\cite{Zhou2022WRR_FloodInundation_DL}.
 
-Adicionalmente, las 1D-CNN son robustas frente al ruido y eficaces para reconocer patrones temporales dentro de segmentos cortos de datos, lo que las hace particularmente adecuadas para el preprocesamiento de señales CGM ruidosas o intermitentes antes de su análisis por modelos recurrentes o basados en atención~\cite{alkanhel2024hybrid}. Estudios recientes también han demostrado que los modelos híbridos que combinan CNN con capas recurrentes, como las GRU, pueden mejorar aún más la precisión en la predicción de glucosa en sangre, evidenciando su potencial para aplicaciones de manejo de la diabetes en tiempo real~\cite{alkanhel2024hybrid}.
+Las 1D-CNN son, además, robustas frente al ruido y eficaces para reconocer patrones dentro de segmentos cortos de señal, lo que las hace útiles como paso de preprocesamiento sobre señales CGM ruidosas o intermitentes, antes de que un modelo recurrente o basado en atención procese la secuencia~\cite{alkanhel2024hybrid}. Combinarlas con una capa recurrente --como en los modelos híbridos CNN-GRU-- mejora aún más la precisión de la predicción de glucosa~\cite{alkanhel2024hybrid}.
 
 \subsection{Modelos Basados en Transformers}
 \label{subsec:transformer}
 
-Los modelos basados en Transformer se han vuelto cada vez más populares para la predicción de series temporales debido a su capacidad de modelar dependencias de largo alcance sin recurrencia. Estos modelos se apoyan en un mecanismo de auto-atención que pondera dinámicamente la relevancia de los distintos elementos de la secuencia. La operación central es la atención por producto punto escalado:
+Los modelos basados en Transformer ganaron terreno en la predicción de series temporales por su capacidad de modelar dependencias de largo alcance sin necesidad de recurrencia. Se apoyan en un mecanismo de auto-atención que pondera dinámicamente la relevancia de los distintos elementos de la secuencia. La operación central es la atención por producto punto escalado:
 
 \begin{equation}
 \label{eq:attention}
@@ -292,9 +331,9 @@ donde cada cabeza se calcula a partir de proyecciones lineales independientes si
 
 Una representación esquemática de un bloque codificador (\textit{Encoder Block}) general de un Transformer se muestra en la Figura~\ref{fig:transformer_encoder}, ilustrando los componentes centrales de la arquitectura descritos en esta sección.
 
- \begin{figure}[h]
+ \begin{figure}[H]
      \centering
-     \includegraphics[width=0.7\textwidth]{figures/Transformer_Encoder.pdf}
+     \includegraphics[width=0.65\textwidth]{figures/Transformer_Encoder.pdf}
      \caption{Diagrama esquemático de un bloque codificador (\textit{Encoder Block}) de Transformer aplicado a series temporales.}
      \label{fig:transformer_encoder}
  \end{figure}
@@ -302,22 +341,58 @@ Una representación esquemática de un bloque codificador (\textit{Encoder Block
 Las capas de atención en los Transformers capturan dependencias de largo alcance e interacciones entre los elementos dentro de la ventana de observación. Cuando se combinan con arquitecturas recurrentes, modelan conjuntamente la estructura global y secuencial. Avances recientes incluyen mecanismos de atención jerárquicos y a múltiples escalas, así como adaptaciones que mejoran la eficiencia para secuencias largas y conjuntos de datos pequeños~\cite{wen2023survey}.
 
 \section{Detección de fallos basada en error de modelo}
+\label{sec:deteccion_error_modelo}
 
-\section{Calidad del dato y normas internacionales (ISO 15197)}
+Un modelo que predice se convierte en un detector de fallos en el momento en que su predicción se compara contra la lectura real: si la diferencia --el error-- supera un límite establecido, se marca una alarma. Esta lógica no nació con las redes neuronales. Zhao y Fu \cite{zhao2015statistical} la aplicaron años antes con un predictor puramente estadístico sobre la señal CGM, sin ninguna entrada fisiológica adicional. Su método calcula una predicción a cinco minutos mediante un modelo autorregresivo, y da seguimiento al error resultante contra un límite calculado sobre datos sin fallos: mientras el error se mantenga dentro de ese margen, se asume que el sensor funciona con normalidad, y en cuanto lo cruza, se marca la alarma. Proponen cinco variantes de este seguimiento --una sobre la señal completa mediante
+componentes principales, dos sobre la componente de alta frecuencia, y dos sobre el error de predicción, una que reacciona solo a la lectura más reciente (carta Shewhart) y otra que pondera el historial reciente para ser más sensible a desviaciones graduales (carta EWMA)--, y son justamente estas dos últimas las que mejor detectan tanto el \textit{spike} como la pérdida de sensibilidad.
 
-\section {Estado del arte: trabajos relacionados} % (del protocolo, sec. II — Antecedentes)
+Turksoy et al. \cite{turksoy2017} llevan la misma lógica un paso más allá: en vez de predecir la glucosa solo a partir de sí misma, construyen un modelo compartimental no lineal de glucosa, insulina y ácidos grasos libres, alimentado con la insulina infundida y los carbohidratos consumidos, y estiman sus estados y parámetros en tiempo real mediante un filtro de Kalman \textit{unscented}. El error entre esa estimación y la lectura del sensor se
+sigue con el mismo tipo de límite estadístico, aunque aquí calculado sobre componentes principales de la señal; cuando el error lo cruza, un clasificador K-Nearest Neighbors (KNN) determina si la causa es un fallo del sensor o un cambio fisiológico legítimo que el modelo no había capturado. Validado sobre 51 sujetos reales, el método detecta 155 de 184 fallos
+documentados (84.2\% de sensibilidad) con un retraso promedio de 2.8 minutos. Incorporar la insulina y los carbohidratos no es un detalle menor. Los propios autores señalan que sin esas dos entradas, el análisis se reduce a una sola variable, la glucosa, y pierde buena parte de su capacidad para distinguir un fallo real de una variación fisiológica normal, como una comida.
 
-\section{Trabajo previo del grupo de investigación} %  (referencia explícita al paper Algorithms 2025 como punto de partida)
+Existe, sin embargo, una manera distinta de resolver el mismo problema, sin calcular ningún error de por medio. Sanchez et al. \cite{sanchez2023} entrenan clasificadores neuronales (perceptrón multicapa, red convolucional, LSTM uni y bidireccional) que reciben directamente una ventana de la señal cruda de cada sensor y predicen si corresponde a un estado sano o a uno de varios tipos de fallo, sin ningún paso intermedio de comparación contra un modelo. Validado sobre un banco de pruebas real de un motor de inducción trifásico, el clasificador convolucional alcanza más de 99\% de exactitud. La clasificación de cada muestra toma apenas nanosegundos. Alanis et al. \cite{alanis2024}, del mismo grupo, integran ese mismo tipo de clasificador, ahora comparando MLP contra CNN, dentro de un esquema de control tolerante a
+fallos completo, donde un identificador neuronal de alto orden entrenado con un filtro de Kalman extendido sintetiza además la ley de control en modo deslizante que mantiene el motor operando pese al fallo detectado. La diferencia frente al primer grupo de métodos queda explícita en el propio artículo: los esquemas basados en un modelo matemático nominal y en un
+umbral fijo --como los de Zhao y Fu, o el de Turksoy et al.-- dependen de ese modelo intermedio; su clasificador, en cambio, aprende directamente las características de un sensor sano o fallido a partir de los datos observados, sin necesitarlo.
+
+Las dos familias resuelven el mismo problema de detección en tiempo real por caminos distintos: una compara una predicción contra la lectura y marca el fallo cuando el error cruza un límite; la otra clasifica la ventana de señal directamente, sin ese cálculo de por medio. Ambas están validadas con datos reales, y ambas usan redes neuronales, aunque cumpliendo roles distintos --predictor en la primera, clasificador en la segunda--. Esta tesis se ubica en la primera: cada arquitectura de la Sección~\ref{sec:redes_neuronales_profundas} genera una predicción de la glucosa, y esa predicción, comparada contra la lectura del sensor, es la que activa la alarma de fallo.
+
+%\section{Calidad del dato y normas internacionales (ISO 15197)}
+
+%\section{Estado del arte: trabajos relacionados} % (del protocolo, sec. II — Antecedentes)
+
+\section{Trabajo previo del grupo de investigación}
+\label{sec:trabajo_previo_grupo}
+
+El sistema del que parte esta tesis fue diseñado, entrenado y publicado por el grupo de investigación, del que el autor de este trabajo forma parte \cite{sanchez2025imputation}.  Las mismas cuatro arquitecturas de la Sección~\ref{sec:redes_neuronales_profundas} --CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM-- se alimentaron ahí con el historial de glucosa, la     insulina administrada y los carbohidratos consumidos, bajo un esquema de detección por error de modelo con un umbral fijo de 10 mg/dL. Sobre un conjunto sintético generado con el modelo fisiológico de Sorensen y sometido a un protocolo controlado de inyección de fallos, CNN-LSTM resultó la arquitectura más efectiva para detectar anomalías: F1 de 0.876, exactitud de 0.979. GRU quedó cerca (F1 = 0.868). El 1D-CNN tomó un camino distinto: acertó casi todas sus alarmas (precisión de 0.975) a costa de dejar pasar más fallos reales que las otras tres redes (recall de 0.663).
+
+En imputación, ningún modelo repitió el primer lugar. El 1D-CNN alcanzó el menor RMSE (3.75 mg/dL) y el menor MARD (0.17\%), la reconstrucción más estable frente a errores grandes, mientras que GRU obtuvo el menor error absoluto promedio (MAE = 2.29 mg/dL) y CNN-LSTM se mantuvo competitivo en ambas métricas sin ganar ninguna. Transformer-LSTM quedó por debajo de las tres en todos los indicadores, con la mayor variabilidad entre corridas. Frente a un modelo ARIMA y una red convolucional temporal (TCN) usados como líneas base, las cuatro arquitecturas propuestas redujeron el error en la práctica totalidad de las métricas evaluadas. La validación en datos reales se hizo sobre un único paciente del conjunto OhioT1DM: ahí, CNN-LSTM detectó las desconexiones naturales del sensor y reconstruyó los segmentos faltantes con un desempeño consistente con el observado en los datos sintéticos.
+
+En el artículo señalamos el umbral fijo como una limitación reconocida, y propusimos, como trabajo futuro, un esquema que se ajuste al nivel de glucosa y a su variabilidad reciente. Esa observación, junto con la ausencia de un modelo único óptimo para ambas tareas y una validación restringida a un solo paciente, es exactamente el terreno donde se ubican los capítulos siguientes de este trabajo.
 
 % =================================================
 % CAPÍTULO 3. METODOLOGÍA
 % =================================================
 \chapter{Metodología}
 
-\section{Visión general del sistema} % (diagrama de la "Metodología Actual")
+\section{Visión general del sistema}
+\label{sec:vision_general_sistema}
 
+El capítulo describe el sistema completo de detección de fallos e imputación en línea que esta tesis propone, desde las señales fisiológicas de entrada hasta el valor de glucosa que finalmente se reporta. La Figura~\ref{fig:vision_general_sistema} lo muestra de principio a fin, y las secciones que siguen desarrollan cada bloque en el orden en que aparece ahí.
 
-\section{Conjuntos de datos} %(del paper, sec. 2.1)
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/Arquitectura_Red_Tesis.png}
+    \caption{Visión general del sistema de detección de fallos e imputación  en línea. El detector y el imputador son arquitecturas neuronales seleccionadas de forma independiente entre las evaluadas en la     Sección~\ref{sec:arquitecturas_implementadas}; el mecanismo de decisión se detalla en la Sección~\ref{sec:pipeline_desacoplado}.}
+    \label{fig:vision_general_sistema}
+\end{figure}
+
+El sistema recibe dos fuentes de datos distintas: el modelo fisiológico de Sorensen genera las series sintéticas con las que se entrena, y el conjunto OhioT1DM aporta los datos reales sobre los que se valida. De ambas se toman glucosa, insulina y carbohidratos. Estos tres flujos se ensamblan en una ventana deslizante $x(k)$ que resume el historial reciente en cada instante $k$, y esa ventana es lo único que alimenta las dos redes de la siguiente etapa.
+
+A partir de $x(k)$, el sistema no genera una sola predicción sino dos, en paralelo: un detector y un imputador, cada uno con su propia arquitectura, seleccionada de forma independiente entre las evaluadas en la Sección~\ref{sec:arquitecturas_implementadas}. Ambos módulos operan en cada instante $k$, sin excepción --el imputador predice incluso cuando, como ocurre la mayor parte del tiempo, su salida no llega a usarse.
+
+La predicción del detector, $\hat{g}_{\mathrm{det}}(k)$, se compara contra la lectura del sensor $g(k)$ para obtener el error $e(k)$; con esa misma predicción, y el historial reciente de glucosa, se calcula también el umbral de tolerancia $\tau(k)$, cuya fórmula se desarrolla en la Sección~\ref{subsec:umbral_adaptativo}. La decisión de fallo compara ambos valores. Si $e(k)$ no supera a $\tau(k)$, la lectura del sensor se considera confiable y se conserva sin cambios. Si lo supera, la salida se construye a partir de la predicción del imputador --suavizado o reemplazo directo, según el tipo de fallo, con el mecanismo exacto descrito en la Sección~\ref{sec:pipeline_desacoplado}.
+
+\section{Conjuntos de datos} 
 \label{sec:datasets}
 La validación de un sistema de detección de fallos e imputación en línea para CGM requiere disponer de fuentes de datos con propiedades complementarias. Por un lado, se necesita un entorno en el que se conozca con exactitud el valor verdadero de la glucosa y la naturaleza de los fallos presentes en la señal, condición indispensable para cuantificar el error de imputación y la exactitud de la detección mediante métricas objetivas. Por otro lado, se requieren registros clínicos reales que reflejen la variabilidad fisiológica de pacientes con diabetes tipo 1 y los modos de fallo característicos del uso ambulatorio de los dispositivos comerciales de CGM, condición indispensable para evaluar la generalización del sistema fuera del entorno de entrenamiento.
 
@@ -796,7 +871,7 @@ Para discriminar entre ambos casos se introduce un umbral secundario $\tau_{\mat
 \end{cases}
 \end{equation}
 
-La elección de $\tau_{\mathrm{D}} = 60$~mg/dL responde a un margen de seguridad respecto a las tolerancias normativas: dado que tanto el ruido típico de los sensores comerciales (del orden de $\pm 15$~mg/dL) como las propias tolerancias de la norma ISO 15197:2013~\cite{27} ($\pm 15$~mg/dL o $\pm 15\%$) operan en una escala notablemente menor a los 60~mg/dL, errores residuales que excedan este valor resultan claramente atribuibles a un evento de pérdida de señal y no a un ruido genuino del sensor.
+La elección de $\tau_{\mathrm{D}} = 60$~mg/dL responde a un margen de seguridad respecto a las tolerancias normativas: dado que tanto el ruido típico de los sensores comerciales (del orden de $\pm 15$~mg/dL) como las propias tolerancias de la norma ISO 15197:2013~\cite{iso15197_2013} ($\pm 15$~mg/dL o $\pm 15\%$) operan en una escala notablemente menor a los 60~mg/dL, errores residuales que excedan este valor resultan claramente atribuibles a un evento de pérdida de señal y no a un ruido genuino del sensor.
 
 \subsection*{Estrategia de imputación}
 \label{subsec:estrategia_imputacion}
@@ -847,7 +922,7 @@ El Algoritmo~\ref{alg:deteccion_imputacion} sintetiza la operación del esquema 
 \label{alg:deteccion_imputacion}
 \begin{algorithmic}[1]
 \Require Lectura actual $g(k)$, ventana $\mathbf{x}(k)$, red entrenada $f_{\Theta}$, umbral $\tau$, umbral de tipo $\tau_{\mathrm{D}}$, ventana de varianza $w_{\mathrm{init}}$, historial de errores $\mathcal{H}_e$
-\Ensure Salida imputada $g_{\mathrm{imp}}(k)$, indicador de fallo $f(k)$
+\Ensure Salida imputada $g_{\mathrm{final}}(k)$, indicador de fallo $f(k)$
 
 \State $\hat{g}(k) \gets f_{\Theta}(\mathbf{x}(k))$ \Comment{Predicción de la red}
 \State $e(k) \gets |g(k) - \hat{g}(k)|$ \Comment{Error residual}
@@ -1032,7 +1107,6 @@ En cada instante de tiempo $k$, el pipeline ejecuta tres pasos secuenciales. El 
 \paragraph{Paso 2 --- Cálculo del error y del umbral.} Se calcula el error de detección $e(k) = |\hat{g}_{\mathrm{det}}(k) - g(k)|$ y el umbral adaptativo $\tau(k)$ según la Ecuación~\eqref{eq:umbral_adaptativo}, utilizando la predicción del detector como referencia glucémica y su ventana histórica para el cómputo de la tasa de cambio.
 
 \paragraph{Paso 3 --- Decisión e imputación.} Si $e(k) > \tau(k)$, se declara un fallo y se activa el imputador: este construye su \textit{propia} ventana deslizante $\mathbf{x}_{\mathrm{imp}}(k)$, la normaliza con sus propios parámetros y genera la predicción de reemplazo $\hat{g}_{\mathrm{imp}}(k)$. El valor final imputado se obtiene aplicando la estrategia de imputación descrita en la Sección~\ref{subsec:estrategia_imputacion}: suavizado adaptativo para ráfagas de ruido blanco ($e(k) < \tau_{\mathrm{D}}$) y reemplazo directo para desconexiones ($e(k) \geq \tau_{\mathrm{D}}$). Si, por el contrario, $e(k) \leq \tau(k)$, la lectura del sensor se considera válida y se conserva sin modificación, $g_{\mathrm{final}}(k) = g(k)$; en este caso el imputador no se ejecuta.
-
 \begin{algorithm}[h]
 \caption{Operación en línea del pipeline desacoplado detector--imputador.}
 \label{alg:pipeline}
@@ -1040,19 +1114,19 @@ En cada instante de tiempo $k$, el pipeline ejecuta tres pasos secuenciales. El 
 \Require Lectura actual $g(k)$, detector $f_{\Theta}^{\mathrm{det}}$, imputador $f_{\Theta}^{\mathrm{imp}}$, parámetros del umbral adaptativo, umbral de tipo $\tau_{\mathrm{D}}$
 \Ensure Salida final $g_{\mathrm{final}}(k)$, indicador de fallo $f(k)$
 
-\Statex \textit{// Paso 1: predicción del detector}
+\Statex \textit{// Paso 1: predicción del detector y del imputador}
 \State Construir y normalizar ventana $\mathbf{x}_{\mathrm{det}}(k)$ con parámetros del detector
 \State $\hat{g}_{\mathrm{det}}(k) \gets f_{\Theta}^{\mathrm{det}}(\mathbf{x}_{\mathrm{det}}(k))$
+\State Construir y normalizar ventana $\mathbf{x}_{\mathrm{imp}}(k)$ con parámetros del imputador
+\State $\hat{g}_{\mathrm{imp}}(k) \gets f_{\Theta}^{\mathrm{imp}}(\mathbf{x}_{\mathrm{imp}}(k))$ \Comment{Se calcula siempre; ver Sección~4.4, métrica D1}
 
 \Statex \textit{// Paso 2: error y umbral adaptativo}
 \State $e(k) \gets |\hat{g}_{\mathrm{det}}(k) - g(k)|$
 \State $\tau(k) \gets$ umbral adaptativo B+ROC \Comment{Algoritmo~\ref{alg:umbral_adaptativo}}
 
-\Statex \textit{// Paso 3: decisión e imputación}
+\Statex \textit{// Paso 3: decisión de fallo}
 \If{$e(k) > \tau(k)$}
     \State $f(k) \gets 1$ \Comment{Fallo detectado}
-    \State Construir y normalizar ventana $\mathbf{x}_{\mathrm{imp}}(k)$ con parámetros del imputador
-    \State $\hat{g}_{\mathrm{imp}}(k) \gets f_{\Theta}^{\mathrm{imp}}(\mathbf{x}_{\mathrm{imp}}(k))$
     \If{$e(k) < \tau_{\mathrm{D}}$}
         \State $\alpha(k) \gets 1 / \big(1 + \mathrm{Var}(\mathcal{H}_e)\big)$
         \State $g_{\mathrm{final}}(k) \gets \alpha(k)\,\hat{g}_{\mathrm{imp}}(k) + (1 - \alpha(k))\,g_{\mathrm{final}}(k\!-\!1)$
@@ -1334,7 +1408,7 @@ Los Autoencoders representan una de las ramas más fascinantes del aprendizaje n
 
 Las cuatro arquitecturas evaluadas en esta tesis —CNN-LSTM, GRU, 1D-CNN y
 Transformer-LSTM— fueron entrenadas siguiendo la misma configuración reportada
-en el trabajo publicado \cite{pascoe2025algorithms}: optimizador Adam con tasa de
+en el trabajo publicado \cite{sanchez2025imputation}: optimizador Adam con tasa de
 aprendizaje $\eta = 0.001$, regularización L2 con $\lambda = 10^{-3}$, mini-lotes
 de 32 muestras, máximo de 300 épocas y parada anticipada (\textit{early stopping})
 con paciencia de 30 épocas sin mejora en la pérdida de validación. Para evaluar la

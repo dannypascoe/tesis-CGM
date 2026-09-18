@@ -89,6 +89,7 @@ alpha_base = 0.3;   % Peso base para suavizado adaptativo
 adapt_params.beta    = 0.10;
 adapt_params.tau_min = 7.0;
 adapt_params.gamma   = 0.05;   % Valor optimizado en experimentos previos
+adapt_params.tau_D = 60;
 
 % --- Rutas ---
 data_path   = fullfile(scriptPath, 'data', 'raw');
@@ -323,7 +324,7 @@ for combo = 1:nCombos
                     alpha = alpha_base;
                 end
                 
-                if err_detect < 60
+                if err_detect < adapt_params.tau_D
                     % Ruido blanco: suavizado adaptativo
                     g_final(k) = alpha * y_hat_imp + (1 - alpha) * g_final(k-1);
                 else
