@@ -1,5 +1,5 @@
 %% =========================================================================
-%  MAIN_OHIO_WINDOW_SELECTION_V1.M
+%  MAIN_OHIO_WINDOW_SELECTION_V3.M
 %  =========================================================================
 %  Descripcion: Carga los archivos train+test de OhioT1DM para UN paciente,
 %               los une en un solo registro cronologico, detecta huecos
@@ -11,6 +11,25 @@
 %  IMPORTANTE: este script NO inyecta fallos ni construye u(k)/m(k) todavia.
 %              Es un paso previo a load_and_prepare_data_ohio.m: aqui solo
 %              se elige y recorta el tramo de datos reales a usar.
+%
+%  CAMBIO V2: se guardan tambien los eventos de insulina y comida de las
+%              PREROLL_HOURS horas anteriores al inicio de la ventana
+%              (window_data.preroll_start_ts). load_and_prepare_data_ohio.m
+%              los usa para "calentar" los sub-modelos de insulina y comida
+%              y despues recorta, de modo que u(k) y m(k) ya no arrancan
+%              desde un estado inicial arbitrario. La glucosa sigue
+%              recortada a [start_ts, end_ts]: el pre-roll NO se evalua.
+%
+%  CAMBIO V3: calibracion de escala de m(k) fuera de la ventana evaluada.
+%              Se simula el modelo gastrointestinal sobre TODO el registro
+%              del paciente y se guarda en meta.std_raw_calib la desviacion
+%              estandar de Qgut calculada SOLO con muestras que no dependen
+%              de la ventana evaluada (antes de start_ts, o despues de
+%              end_ts + CALIB_EXCL_AFTER_H). load_and_prepare_data_ohio.m
+%              usa ese valor en lugar de la std de la propia ventana, de
+%              modo que la calibracion es un paso previo, fuera de linea,
+%              que no usa informacion de los datos evaluados.
+%              Requiere build_ohio_meal_signal.m y subject2_params.m en el path.
 %
 %  Formato de fecha confirmado en el XML: 'dd-MM-yyyy HH:mm:ss'
 %
@@ -28,7 +47,7 @@ clear; clc; close all;
 %% ===================== CONFIGURACION =====================
 
 % ID del paciente a procesar (elegir manualmente)
-patient_id = '540';        % <<< CAMBIAR AQUI 559 listo
+patient_id = '559';        % <<< CAMBIAR AQUI 559 listo
 
 % Duracion de la ventana a seleccionar, en dias
 window_days = 5;
@@ -40,12 +59,21 @@ GRID_TOL_MIN = 2.5;
 
 DT_MINUTES = 5;   % cadencia nominal del CGM
 
+% Horas de historia previa (solo insulina/comida) para el calentamiento de
+% los sub-modelos. Con ka1 = 0.0038 min^-1 (tau ~ 4.4 h), 24 h dejan el
+% transitorio inicial en e^-5.5 (< 0.5 %).
+PREROLL_HOURS = 24;
+
+% Horas despues de end_ts que tampoco se usan para calibrar m(k): ahi
+% todavia se esta absorbiendo la ultima comida de la ventana evaluada.
+CALIB_EXCL_AFTER_H = 12;
+
 % Rutas base del dataset OhioT1DM (MODIFICAR SEGUN TU UBICACION)
 ohio_root = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\OhioT1DM\OhioT1DM';
 years_to_try = {'2018', '2020'};
 
 % Ruta de salida dentro del proyecto (PARALELA a bloque_A..D, no dentro de ellos)
-scriptPath  = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project';
+scriptPath  = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project\matlab';
 output_path = fullfile(scriptPath, 'data', 'ohio', 'prepared');
 if ~exist(output_path, 'dir')
     mkdir(output_path);
@@ -127,9 +155,28 @@ fprintf('    Para tomar otra candidata de la lista de arriba, cambia "window_cho
 window_choice = 1;   % <<< 1 = la mejor (menor %% huecos); cambiar a 2, 3... para otra candidata
 best_window = table2struct(ranking(window_choice, :));
 
+%% ===================== CALIBRACION DE m(k) FUERA DE LA VENTANA =====================
+
+std_raw_calib = compute_meal_calibration(merged, grid_ts, best_window.start_ts, ...
+    best_window.end_ts, CALIB_EXCL_AFTER_H, DT_MINUTES);
+
 %% ===================== RECORTAR Y GUARDAR EL SUBCONJUNTO CRUDO =====================
 
-window_data = extract_ohio_window(merged, best_window.start_ts, best_window.end_ts);
+% Inicio del pre-roll: PREROLL_HOURS antes, recortado si el registro no
+% alcanza, y siempre en multiplos exactos de DT_MINUTES (para que la
+% rejilla extendida caiga justo sobre start_ts).
+record_start   = min([merged.glucose.ts(1); merged.basal.ts(1)]);
+avail_min      = max(0, minutes(best_window.start_ts - record_start));
+preroll_min    = min(PREROLL_HOURS*60, floor(avail_min/DT_MINUTES)*DT_MINUTES);
+preroll_start_ts = best_window.start_ts - minutes(preroll_min);
+if preroll_min < PREROLL_HOURS*60
+    warning('Pre-roll recortado a %.1f h (el registro empieza antes de %d h previas).', ...
+        preroll_min/60, PREROLL_HOURS);
+end
+fprintf('Pre-roll: %s -> %s (%.1f h)\n', datestr(preroll_start_ts), ...
+    datestr(best_window.start_ts), preroll_min/60);
+
+window_data = extract_ohio_window(merged, best_window.start_ts, best_window.end_ts, preroll_start_ts);
 
 meta = struct();
 meta.patient_id   = patient_id;
@@ -138,6 +185,10 @@ meta.window_days  = window_days;
 meta.start_ts     = best_window.start_ts;
 meta.end_ts       = best_window.end_ts;
 meta.pct_missing  = best_window.pct_missing;
+meta.preroll_start_ts = preroll_start_ts;
+meta.preroll_hours    = preroll_min/60;
+meta.std_raw_calib    = std_raw_calib;
+meta.calib_excl_after_h = CALIB_EXCL_AFTER_H;
 meta.train_file   = train_file;
 meta.test_file    = test_file;
 meta.generated_on = datestr(now, 'yyyy-mm-dd HH:MM:SS');
@@ -458,25 +509,60 @@ function [best, ranking] = find_cleanest_window(grid_ts, gap_mask, window_days, 
     best = table2struct(ranking(1, :));
 end
 
-function window_data = extract_ohio_window(merged, start_ts, end_ts)
-%EXTRACT_OHIO_WINDOW Recorta los eventos crudos de todas las senales al
-%   rango [start_ts, end_ts]. Basal incluye tambien el ultimo evento ANTES
-%   del inicio, para saber la tasa vigente al comenzar la ventana.
+function window_data = extract_ohio_window(merged, start_ts, end_ts, preroll_start_ts)
+%EXTRACT_OHIO_WINDOW Recorta los eventos crudos a la ventana de evaluacion.
+%   - glucose: solo [start_ts, end_ts] (lo que se evalua).
+%   - meal, basal, temp_basal, bolus: desde preroll_start_ts hasta end_ts,
+%     para calentar los sub-modelos de absorcion antes de start_ts.
+%   Basal incluye tambien el ultimo evento ANTES de preroll_start_ts, para
+%   conocer la tasa vigente al comenzar el pre-roll.
+    if nargin < 4 || isempty(preroll_start_ts)
+        preroll_start_ts = start_ts;
+    end
+
     window_data = struct();
-    window_data.start_ts = start_ts;
-    window_data.end_ts   = end_ts;
+    window_data.start_ts         = start_ts;
+    window_data.end_ts           = end_ts;
+    window_data.preroll_start_ts = preroll_start_ts;
 
-    window_data.glucose = crop_simple(merged.glucose, start_ts, end_ts);
-    window_data.meal    = crop_simple(merged.meal,    start_ts, end_ts);
+    window_data.glucose = crop_simple(merged.glucose, start_ts,         end_ts);
+    window_data.meal    = crop_simple(merged.meal,    preroll_start_ts, end_ts);
 
-    idx_before = find(merged.basal.ts <= start_ts, 1, 'last');
-    idx_in     = find(merged.basal.ts > start_ts & merged.basal.ts <= end_ts);
+    idx_before = find(merged.basal.ts <= preroll_start_ts, 1, 'last');
+    idx_in     = find(merged.basal.ts > preroll_start_ts & merged.basal.ts <= end_ts);
     idx_basal  = unique([idx_before; idx_in]);
     window_data.basal.ts    = merged.basal.ts(idx_basal);
     window_data.basal.value = merged.basal.value(idx_basal);
 
-    window_data.temp_basal = crop_ranged(merged.temp_basal, start_ts, end_ts);
-    window_data.bolus      = crop_ranged(merged.bolus, start_ts, end_ts);
+    window_data.temp_basal = crop_ranged(merged.temp_basal, preroll_start_ts, end_ts);
+    window_data.bolus      = crop_ranged(merged.bolus,      preroll_start_ts, end_ts);
+end
+
+function std_raw_calib = compute_meal_calibration(merged, grid_ts, start_ts, end_ts, excl_after_h, dt_minutes)
+%COMPUTE_MEAL_CALIBRATION Simula el sub-modelo gastrointestinal sobre todo
+%   el registro (todas las comidas, fisicamente continuo) y devuelve la std
+%   de Qgut SIN calibrar usando solo muestras fuera de la ventana evaluada:
+%     - antes de start_ts (causal respecto a la ventana), y
+%     - despues de end_ts + excl_after_h (ya sin cola de comidas evaluadas).
+%   El factor final (std_raw_calib / std_m_ref) se aplica despues en
+%   load_and_prepare_data_ohio.m, para no atar este script a un modelo.
+    subj = subject2_params();
+    [~, ~, ~, Qgut_raw] = build_ohio_meal_signal(grid_ts, merged.meal, ...
+        merged.bolus, dt_minutes, subj);
+
+    use = grid_ts < start_ts | grid_ts > end_ts + hours(excl_after_h);
+    n_use = sum(use);
+    std_raw_calib = std(Qgut_raw(use));
+
+    fprintf('\nCalibracion de m(k): %d muestras fuera de la ventana (%.1f dias) | std_raw_calib = %.2f\n', ...
+        n_use, n_use*dt_minutes/1440, std_raw_calib);
+
+    if n_use*dt_minutes/1440 < 7
+        warning('Menos de 7 dias disponibles para calibrar m(k); la estimacion puede ser inestable.');
+    end
+    if ~(std_raw_calib > 0)
+        error('std_raw_calib = 0: no hay comidas registradas fuera de la ventana.');
+    end
 end
 
 function out = crop_simple(s, start_ts, end_ts)

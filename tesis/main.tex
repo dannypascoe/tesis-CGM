@@ -22,6 +22,7 @@
 \usepackage{float}
 \usepackage[labelfont=bf]{caption}   % numeración + "Tabla X.Y" en negrita
 \usepackage{pgfgantt}      % si incluyes el Gantt directamente aquí
+\raggedbottom
 
 % --- Algoritmos ---
 \usepackage{algorithm}
@@ -343,15 +344,11 @@ Las capas de atención en los Transformers capturan dependencias de largo alcanc
 \section{Detección de fallos basada en error de modelo}
 \label{sec:deteccion_error_modelo}
 
-Un modelo que predice se convierte en un detector de fallos en el momento en que su predicción se compara contra la lectura real: si la diferencia --el error-- supera un límite establecido, se marca una alarma. Esta lógica no nació con las redes neuronales. Zhao y Fu \cite{zhao2015statistical} la aplicaron años antes con un predictor puramente estadístico sobre la señal CGM, sin ninguna entrada fisiológica adicional. Su método calcula una predicción a cinco minutos mediante un modelo autorregresivo, y da seguimiento al error resultante contra un límite calculado sobre datos sin fallos: mientras el error se mantenga dentro de ese margen, se asume que el sensor funciona con normalidad, y en cuanto lo cruza, se marca la alarma. Proponen cinco variantes de este seguimiento --una sobre la señal completa mediante
-componentes principales, dos sobre la componente de alta frecuencia, y dos sobre el error de predicción, una que reacciona solo a la lectura más reciente (carta Shewhart) y otra que pondera el historial reciente para ser más sensible a desviaciones graduales (carta EWMA)--, y son justamente estas dos últimas las que mejor detectan tanto el \textit{spike} como la pérdida de sensibilidad.
+Un modelo que predice se convierte en un detector de fallos en el momento en que su predicción se compara contra la lectura real: si la diferencia --el error-- supera un límite establecido, se marca una alarma. Esta lógica no nació con las redes neuronales. Zhao y Fu \cite{zhao2015statistical} la aplicaron años antes con un predictor puramente estadístico sobre la señal CGM, sin ninguna entrada fisiológica adicional. Su método calcula una predicción a cinco minutos mediante un modelo autorregresivo, y da seguimiento al error resultante contra un límite calculado sobre datos sin fallos: mientras el error se mantenga dentro de ese margen, se asume que el sensor funciona con normalidad, y en cuanto lo cruza, se marca la alarma. Proponen cinco variantes de este seguimiento --una sobre la señal completa mediante componentes principales, dos sobre la componente de alta frecuencia, y dos sobre el error de predicción, una que reacciona solo a la lectura más reciente (carta Shewhart) y otra que pondera el historial reciente para ser más sensible a desviaciones graduales (carta EWMA)--, y son justamente estas dos últimas las que mejor detectan tanto el \textit{spike} como la pérdida de sensibilidad.
 
-Turksoy et al. \cite{turksoy2017} llevan la misma lógica un paso más allá: en vez de predecir la glucosa solo a partir de sí misma, construyen un modelo compartimental no lineal de glucosa, insulina y ácidos grasos libres, alimentado con la insulina infundida y los carbohidratos consumidos, y estiman sus estados y parámetros en tiempo real mediante un filtro de Kalman \textit{unscented}. El error entre esa estimación y la lectura del sensor se
-sigue con el mismo tipo de límite estadístico, aunque aquí calculado sobre componentes principales de la señal; cuando el error lo cruza, un clasificador K-Nearest Neighbors (KNN) determina si la causa es un fallo del sensor o un cambio fisiológico legítimo que el modelo no había capturado. Validado sobre 51 sujetos reales, el método detecta 155 de 184 fallos
-documentados (84.2\% de sensibilidad) con un retraso promedio de 2.8 minutos. Incorporar la insulina y los carbohidratos no es un detalle menor. Los propios autores señalan que sin esas dos entradas, el análisis se reduce a una sola variable, la glucosa, y pierde buena parte de su capacidad para distinguir un fallo real de una variación fisiológica normal, como una comida.
+Turksoy et al. \cite{turksoy2017} llevan la misma lógica un paso más allá: en vez de predecir la glucosa solo a partir de sí misma, construyen un modelo compartimental no lineal de glucosa, insulina y ácidos grasos libres, alimentado con la insulina infundida y los carbohidratos consumidos, y estiman sus estados y parámetros en tiempo real mediante un filtro de Kalman \textit{unscented}. El error entre esa estimación y la lectura del sensor se sigue con el mismo tipo de límite estadístico, aunque aquí calculado sobre componentes principales de la señal; cuando el error lo cruza, un clasificador K-Nearest Neighbors (KNN) determina si la causa es un fallo del sensor o un cambio fisiológico legítimo que el modelo no había capturado. Validado sobre 51 sujetos reales, el método detecta 155 de 184 fallos documentados (84.2\% de sensibilidad) con un retraso promedio de 2.8 minutos. Incorporar la insulina y los carbohidratos no es un detalle menor. Los propios autores señalan que sin esas dos entradas, el análisis se reduce a una sola variable, la glucosa, y pierde buena parte de su capacidad para distinguir un fallo real de una variación fisiológica normal, como una comida.
 
-Existe, sin embargo, una manera distinta de resolver el mismo problema, sin calcular ningún error de por medio. Sanchez et al. \cite{sanchez2023} entrenan clasificadores neuronales (perceptrón multicapa, red convolucional, LSTM uni y bidireccional) que reciben directamente una ventana de la señal cruda de cada sensor y predicen si corresponde a un estado sano o a uno de varios tipos de fallo, sin ningún paso intermedio de comparación contra un modelo. Validado sobre un banco de pruebas real de un motor de inducción trifásico, el clasificador convolucional alcanza más de 99\% de exactitud. La clasificación de cada muestra toma apenas nanosegundos. Alanis et al. \cite{alanis2024}, del mismo grupo, integran ese mismo tipo de clasificador, ahora comparando MLP contra CNN, dentro de un esquema de control tolerante a
-fallos completo, donde un identificador neuronal de alto orden entrenado con un filtro de Kalman extendido sintetiza además la ley de control en modo deslizante que mantiene el motor operando pese al fallo detectado. La diferencia frente al primer grupo de métodos queda explícita en el propio artículo: los esquemas basados en un modelo matemático nominal y en un
+Existe, sin embargo, una manera distinta de resolver el mismo problema, sin calcular ningún error de por medio. Sanchez et al. \cite{sanchez2023realtime} entrenan clasificadores neuronales (perceptrón multicapa, red convolucional, LSTM uni y bidireccional) que reciben directamente una ventana de la señal cruda de cada sensor y predicen si corresponde a un estado sano o a uno de varios tipos de fallo, sin ningún paso intermedio de comparación contra un modelo. Validado sobre un banco de pruebas real de un motor de inducción trifásico, el clasificador convolucional alcanza más de 99\% de exactitud. La clasificación de cada muestra toma apenas nanosegundos. Alanis et al. \cite{alanis2024fault}, del mismo grupo, integran ese mismo tipo de clasificador, ahora comparando MLP contra CNN, dentro de un esquema de control tolerante a fallos completo, donde un identificador neuronal de alto orden entrenado con un filtro de Kalman extendido sintetiza además la ley de control en modo deslizante que mantiene el motor operando pese al fallo detectado. La diferencia frente al primer grupo de métodos queda explícita en el propio artículo: los esquemas basados en un modelo matemático nominal y en un
 umbral fijo --como los de Zhao y Fu, o el de Turksoy et al.-- dependen de ese modelo intermedio; su clasificador, en cambio, aprende directamente las características de un sensor sano o fallido a partir de los datos observados, sin necesitarlo.
 
 Las dos familias resuelven el mismo problema de detección en tiempo real por caminos distintos: una compara una predicción contra la lectura y marca el fallo cuando el error cruza un límite; la otra clasifica la ventana de señal directamente, sin ese cálculo de por medio. Ambas están validadas con datos reales, y ambas usan redes neuronales, aunque cumpliendo roles distintos --predictor en la primera, clasificador en la segunda--. Esta tesis se ubica en la primera: cada arquitectura de la Sección~\ref{sec:redes_neuronales_profundas} genera una predicción de la glucosa, y esa predicción, comparada contra la lectura del sensor, es la que activa la alarma de fallo.
@@ -1828,9 +1825,7 @@ La métrica~D3 (Tabla~\ref{tab:44-mae-d3}) evalúa el error de la señal de sali
 
 \begin{table}[htbp]
 \centering
-\caption{MAE de reconstrucción (D3, mg/dL) sobre las muestras con fallo real
-($\texttt{true\_f}=1$). Métrica diagnóstica. Valores como media $\pm$ desviación
-estándar.}
+\caption{MAE de reconstrucción (D3, mg/dL) sobre las muestras con fallo real ($\texttt{true\_f}=1$). Métrica diagnóstica. Valores como media $\pm$ desviación estándar.}
 \label{tab:44-mae-d3}
 \small
 \begin{tabular}{lcccc}
@@ -1866,6 +1861,17 @@ La elección entre ambas depende del objetivo clínico: minimizar el error medio
 \label{fig:44-frente}
 \end{figure}
 
+Este contraste numérico se puede llevar a una traza concreta: la Figura~\ref{fig:reconstruccion_gru} compara, sobre los mismos episodios de fallo detectado del conjunto de prueba, la señal que reconstruye cada configuración co-óptima.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_reconstruccion_GRUGRU_vs_GRU1DCNN.eps}
+    \caption{Reconstrucción de la señal CGM para las dos configuraciones co-óptimas, que comparten detector (GRU) y difieren solo en el imputador. Arriba, ventana de contexto de 56 a 72\,h del conjunto de prueba, con el recuadro punteado indicando la región ampliada abajo. Abajo, acercamiento a 61.5--66.4\,h. Las franjas de fondo marcan los episodios de fallo detectado dentro de esta ventana: rosa para desconexión del sensor, amarillo para ruido blanco. Fuera de esas franjas las cuatro curvas coinciden, porque la máscara de fallo detectado es idéntica para ambos imputadores. La corrida mostrada corresponde a la de las 5 semillas más cercana al promedio conjunto de F1 y MAE, para evitar seleccionar un caso favorable.}
+    \label{fig:reconstruccion_gru}
+\end{figure}
+
+La diferencia entre imputadores no es pareja entre los dos tipos de fallo. Durante la desconexión (62.5--64.2\,h aprox.), GRU$\to$GRU desciende de forma prácticamente monótona hasta $\sim$81\,mg/dL mientras la señal real sube a un máximo cercano a 105 y se estabiliza alrededor de 101; GRU$\to$1D-CNN sigue ese ascenso con un desfase menor, llegando a $\sim$103 antes de cerrar en $\sim$96. En los dos tramos de ruido blanco, en cambio, ambas reconstrucciones se superponen casi por completo, incluyendo un tramo donde las dos se quedan ancladas cerca de 118\,mg/dL sin seguir el descenso gradual de la señal real. La ventaja de GRU$\to$1D-CNN en D3 (Tabla~\ref{tab:44-mae-d3}) parece concentrarse entonces en los fallos de desconexión; frente al ruido blanco, con el detector fijo en GRU, la elección de imputador apenas importa.
+
 \subsection{Comparación con el esquema unificado}
 \label{subsec:diagonal-vs-desacoplado}
 
@@ -1873,11 +1879,55 @@ La diagonal del pipeline desacoplado (detector = imputador) reproduce el esquema
 
 Sin embargo, reducir el MAE no es el aporte principal del desacoplamiento. Su valor real reside en desligar la elección del detector de la del imputador, ampliando el espacio de diseño del sistema. El caso más ilustrativo es GRU\,$\rightarrow$\,1D-CNN: el esquema unificado no puede acceder a la calidad de reconstrucción de 1D-CNN (RMSE $3.82$, $R^2 \approx 0.98$, D3 $\approx 5.4$~mg/dL) sin usarlo también como detector, lo que obliga a aceptar el peor $F_1$ ($0.785$). El pipeline desacoplado rompe esa atadura y permite combinar el mejor detector (GRU, $F_1 = 0.884$) con el mejor imputador de reconstrucción (1D-CNN), una configuración inalcanzable en el esquema unificado. Este es el argumento central a favor del desacoplamiento: más que optimizar una métrica puntual, habilita combinaciones de diseño que el esquema unificado excluye por construcción. 
 
-\section{Resultados de detección de fallos} % (paper sec. 5.2)
-\section{Comparación contra ARIMA y TCN} %(paper)
-\section{Validación del umbral adaptativo} % las 16 combinaciones, eliminación de falsos positivos, β·ROC
-\section{Pipeline integrado 4×4: análisis de las 16 combinaciones} % (co-óptimos GRU→1D-CNN y CNN-LSTM→1D-CNN
+%\section{Resultados de detección de fallos} se responde en 4.2, 4.3 y 4.4
+
+% ############# PENDIENTE DEFINIR ####################
+
+%\section{Comparación contra ARIMA y TCN} %(paper)
+
+% ###################################
+
+% \section{Validación del umbral adaptativo} contenido que ya está en 4.3
+
+% \section{Pipeline integrado 4×4: análisis de las 16 combinaciones} % contenido de 4.4.
+
 \section{Validación clínica e impacto sobre indicadores TIR/hipo/hiper}
+
+\subsection{Validación clínica en datos sintéticos (Sorensen)}
+\label{subsec:clinico_sorensen}
+
+Aplicamos los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios --- la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline --- para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
+
+\begin{table}[!htb]
+\centering
+\footnotesize
+\caption{Indicadores clínicos sobre la señal sintética de Sorensen, para las dos configuraciones co-óptimas. TIR/TBR/TAR en \% del tiempo; media y SD en          mg/dL; CV en \%; GMI en \% (aproximación no invasiva de HbA1c).}
+\label{tab:clinico_sorensen}
+\begin{tabular}{lccc ccc c}
+\toprule
+& \multicolumn{3}{c}{GRU $\to$ 1D-CNN} & \multicolumn{3}{c}{GRU $\to$ GRU} & \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+\textbf{Indicador} & Ref. & Sin imp. & Pipeline & Ref. & Sin imp. & Pipeline & \textbf{Objetivo} \\
+\midrule
+TIR (70--180)         & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & $\geq$70\% \\
+TBR L1 (<70)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <4\% \\
+TBR L2 (<54)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <1\% \\
+TAR L1 (180--250)     & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <25\% \\
+TAR L2 (>250)         & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <5\% \\
+Glucosa media (mg/dL) & 98,1  & 97,7  & 98,1  & 98,1  & 97,7  & 97,1  & Informativo \\
+SD (mg/dL)            & 16,0  & 16,5  & 16,1  & 16,0  & 16,5  & 16,6  & Informativo \\
+CV (\%)               & 16,3  & 16,9  & 16,4  & 16,3  & 16,9  & 17,1  & $\leq$36\% \\
+GMI (\%)              & 5,7   & 5,6   & 5,7   & 5,7   & 5,6   & 5,6   & <7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenarios para ambas configuraciones: 100\,\% de tiempo en rango, 0\,\% en cualquiera de los cuatro niveles de desviación. No es que el pipeline prevenga la hipo o la hiperglucemia --- es que, en esta simulación, la glucosa nunca sale del rango 70--180\,mg/dL, con o sin fallo inyectado. Los cinco indicadores discretos quedan saturados por el propio escenario de prueba, exactamente como se anticipó en la Sección~\ref{subsec:cobertura_clinica}, y ninguna diferencia entre GRU$\to$GRU y GRU$\to$1D-CNN puede manifestarse ahí.
+
+Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas $+0,1$ puntos porcentuales para GRU$\to$1D-CNN (16,3\,\% $\to$ 16,4\,\%) frente a $+0,8$ para GRU$\to$GRU (16,3\,\% $\to$ 17,1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5,7\,\%) mientras GRU$\to$GRU se desvía una décima (5,6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario --- que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados --- pero aquí ocurre lo opuesto para GRU$\to$GRU: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, lo que añade variabilidad en lugar de esconderla.
+
+Las diferencias son pequeñas en términos absolutos, y es justo ese el punto: sobre una simulación que apenas se mueve dentro del rango normoglucémico, ni el mejor ni el peor de los dos pipelines tiene margen para mostrar mucho más. La validación con OhioT1DM, con pacientes reales y excursiones glucémicas genuinas, es donde esta comparación puede volverse clínicamente decisiva.
+
 \section{Validación en datos reales OhioT1DM}
 
 % =================================================

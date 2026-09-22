@@ -41,7 +41,7 @@ clear; clc; close all;
 
 %% ===================== AGREGAR CARPETAS AL PATH =====================
 % MODIFICAR SEGÚN TU UBICACIÓN
-scriptPath = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project';
+scriptPath = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project\matlab';
 
 addpath(fullfile(scriptPath, 'architectures'));
 addpath(fullfile(scriptPath, 'data_preparation'));
