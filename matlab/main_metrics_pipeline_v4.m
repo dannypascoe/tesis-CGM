@@ -19,7 +19,7 @@ clear; clc; close all;
 %% ===================== CONFIGURACIÓN =====================
 
 % Ruta base del proyecto (MODIFICAR SEGÚN TU UBICACIÓN)
-scriptPath = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project';
+scriptPath = 'D:\Documentos\02 MROI\07 Tesis\03 Extension Tesis\CGM_Project\CGM_Project\matlab';
 
 % Rutas
 models_path = fullfile(scriptPath, 'data', 'models');
