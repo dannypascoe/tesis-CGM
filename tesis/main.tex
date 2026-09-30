@@ -184,7 +184,7 @@ La validación experimental de este trabajo se hizo en dos etapas. En la primera
 Las cuatro arquitecturas evaluadas --CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM-- son las mismas del trabajo previo del grupo, con capas e hiperparámetros de entrenamiento idénticos. Esta tesis no explora arquitecturas nuevas: la variable de interés es el esquema de detección e imputación --fijo frente a adaptativo, unificado frente a desacoplado-- y modificar al mismo tiempo las arquitecturas impediría atribuir con claridad las diferencias de desempeño a una sola causa. Los parámetros del umbral
 adaptativo se mantuvieron iguales para las cuatro, priorizando una configuración unificada sobre un ajuste fino por arquitectura.
 
-A esta validación se suma una restricción propia del conjunto OhioT1DM: al no incluir una traza de glucosa de referencia, la evaluación sobre datos reales se limita a métricas de clasificación y a una revisión cualitativa de la imputación, sin que sea posible reportar ahí un error de reconstrucción en mg/dL como sí ocurre con los datos sintéticos.
+A esta validación se suma una restricción propia del conjunto OhioT1DM: los huecos del sensor no tienen una glucosa de referencia con la cual medir el error. Para poder reportar también el error de reconstrucción en mg/dL, la evaluación sobre datos reales inyecta fallos sintéticos en ventanas de registro real y toma como referencia la lectura original del sensor. Es una aproximación. La referencia es lo que registró el propio sensor y no la glucosa en sangre, y los fallos, al ser sintéticos, no reproducen del todo los naturales.
 
 Quedan fuera del alcance de esta tesis la implementación del sistema en un dispositivo embebido y su integración en un lazo de control de insulina en tiempo real. Ambos puntos son relevantes para llevar este trabajo a unescenario clínico o comercial, pero requieren un desarrollo de ingeniería y una validación regulatoria que corresponden a una etapa posterior, no a esta tesis.
 
@@ -393,7 +393,8 @@ La predicción del detector, $\hat{g}_{\mathrm{det}}(k)$, se compara contra la l
 \label{sec:datasets}
 La validación de un sistema de detección de fallos e imputación en línea para CGM requiere disponer de fuentes de datos con propiedades complementarias. Por un lado, se necesita un entorno en el que se conozca con exactitud el valor verdadero de la glucosa y la naturaleza de los fallos presentes en la señal, condición indispensable para cuantificar el error de imputación y la exactitud de la detección mediante métricas objetivas. Por otro lado, se requieren registros clínicos reales que reflejen la variabilidad fisiológica de pacientes con diabetes tipo 1 y los modos de fallo característicos del uso ambulatorio de los dispositivos comerciales de CGM, condición indispensable para evaluar la generalización del sistema fuera del entorno de entrenamiento.
 
-En consecuencia, este trabajo emplea dos fuentes de datos complementarias. La primera consiste en datos sintéticos generados a partir del modelo fisiológico multicompartimental de Sorensen~\cite{ruiz2018sorensen}, los cuales se utilizan tanto para el entrenamiento de las arquitecturas profundas como para una evaluación cuantitativa controlada con fallos inyectados de manera artificial sobre un conjunto de prueba independiente. La segunda corresponde al conjunto clínico OhioT1DM~\cite{marling2020ohiot1dm}, que reúne registros reales de pacientes con diabetes tipo 1 y se emplea para validar el comportamiento del sistema bajo las condiciones no controladas del uso clínico cotidiano. Esta estrategia bifásica permite combinar el rigor cuantitativo, posible únicamente cuando se dispone de una señal de referencia, con la evidencia de generalización a datos reales, donde no es posible cuantificar el error de reconstrucción pero sí evaluar el comportamiento del detector y de la imputación de manera cualitativa y mediante métricas de clasificación.
+En consecuencia, este trabajo emplea dos fuentes de datos complementarias. La primera consiste en datos sintéticos generados a partir del modelo fisiológico multicompartimental de Sorensen~\cite{ruiz2018sorensen}, los cuales se utilizan tanto para el entrenamiento de las arquitecturas profundas como para una evaluación cuantitativa controlada con fallos inyectados de manera artificial sobre un conjunto de prueba independiente. La segunda corresponde al conjunto clínico OhioT1DM~\cite{marling2020ohiot1dm}, que reúne registros reales de pacientes con diabetes tipo 1 y se emplea para validar el comportamiento del sistema bajo las condiciones no controladas del uso clínico cotidiano. Esta estrategia bifásica combina el rigor de una referencia exacta, disponible solo en la simulación, con la evidencia de generalización a registros reales. En estos últimos los huecos del sensor no tienen valor verdadero, por lo que la referencia se aproxima inyectando fallos sintéticos sobre ventanas reales con pocos huecos (Sección~\ref{subsec:datos_reales}).
+%(Sección~\ref{subsec:ohio_ventanas}).
 
 \subsection{Datos sintéticos: modelo fisiológico de Sorensen}
 \label{subsec:datos_sinteticos}
@@ -422,19 +423,19 @@ El conjunto OhioT1DM contiene ocho semanas de registros para cada uno de doce pa
 
 \begin{table}[H]
     \centering
-    \caption{Composición de la cohorte del conjunto OhioT1DM~\cite{marling2020ohiot1dm}.}
+    \caption{Composición de la cohorte del conjunto OhioT1DM~\cite{marling2020ohiot1dm}. Los pacientes marcados con $\dagger$ son los utilizados en esta tesis (Sección~\ref{subsec:datos_reales}).}
     \label{tab:ohio_cohort}
     \begin{tabular}{ccccc}
         \toprule
         \textbf{ID} & \textbf{Sexo} & \textbf{Rango de edad} & \textbf{Bomba} & \textbf{Pulsera (cohorte)} \\
         \midrule
-        540 & Masculino & 20--40 & 630G & Empatica (2020) \\
+        540$^\dagger$ & Masculino & 20--40 & 630G & Empatica (2020) \\
         544 & Masculino & 40--60 & 530G & Empatica (2020) \\
         552 & Masculino & 20--40 & 630G & Empatica (2020) \\
         567 & Femenino  & 20--40 & 630G & Empatica (2020) \\
         584 & Masculino & 40--60 & 530G & Empatica (2020) \\
-        596 & Masculino & 60--80 & 530G & Empatica (2020) \\
-        559 & Femenino  & 40--60 & 530G & Basis (2018) \\
+        596$^\dagger$ & Masculino & 60--80 & 530G & Empatica (2020) \\
+        559$^\dagger$ & Femenino  & 40--60 & 530G & Basis (2018) \\
         563 & Masculino & 40--60 & 530G & Basis (2018) \\
         570 & Masculino & 40--60 & 530G & Basis (2018) \\
         575 & Femenino  & 40--60 & 530G & Basis (2018) \\
@@ -455,29 +456,48 @@ El conjunto OhioT1DM integra de manera sincronizada múltiples flujos de informa
 El conjunto OhioT1DM se distribuye públicamente con fines exclusivamente de investigación a través de un \textit{Data Use Agreement} (DUA) firmado entre la institución del investigador y Ohio University. Los datos fueron desidentificados conforme al método \textit{Safe Harbor} establecido por la regulación HIPAA, y todas las fechas de cada paciente fueron desplazadas de manera uniforme hacia el futuro para preservar los días de la semana y los horarios de cada evento, sin que sea posible inferir efectos estacionales o festividades. Para el desarrollo de esta tesis se siguió el procedimiento formal correspondiente con la Universidad de Guadalajara para obtener el conjunto.
 
 \subsubsection*{Uso del conjunto en este trabajo}
-
-A diferencia de los datos sintéticos, las series del conjunto OhioT1DM contienen fallos de sensor no controlados que se manifiestan como ruido y datos faltantes derivados de desconexiones naturales del dispositivo durante el uso ambulatorio. La Tabla~\ref{tab:ohio_gaps} muestra los cinco intervalos más largos con datos faltantes identificados en el sujeto evaluado en el trabajo previo del grupo, los cuales pueden alcanzar hasta más de 16~h de duración. Cabe señalar que, aunque la presencia de ruido también es esperable en estos registros, no es posible corroborarla directamente, ya que el conjunto no incluye una señal de glucosa de referencia que permita comparar las lecturas del sensor con un valor verdadero.
-
+ 
+A diferencia de los datos sintéticos, los registros de OhioT1DM contienen fallos de sensor no controlados: ruido y datos faltantes por desconexiones del dispositivo durante el uso diario. El trabajo previo del grupo~\cite{sanchez2025imputation} documentó intervalos sin lectura de hasta 16.4~h en el único paciente que evaluó. El ruido, en cambio, no puede corroborarse, porque el conjunto no trae una glucosa de referencia con la que comparar la lectura, y esa misma ausencia impide medir cuánto se equivoca una imputación dentro de un hueco. Aquí se inyectan fallos sintéticos sobre ventanas de registro real y se toma como referencia la lectura original del sensor, con los modelos entrenados en Sorensen y sin reentrenarlos. Los párrafos siguientes describen los pacientes, las ventanas, las entradas y los fallos.
+ 
+\paragraph{Pacientes.} Se usaron tres de los doce pacientes: 540, 559 y 596 (marcados en la Tabla~\ref{tab:ohio_cohort}). Pertenecen a las dos cohortes, 2018 y 2020, y a tres rangos de edad, de 20--40 a 60--80 años. Con tres pacientes el análisis es descriptivo: sirve para ver si el desempeño cambia entre perfiles distintos, no para estimar el de la población.
+ 
+\paragraph{Ventanas de evaluación.} Para cada paciente se usa una ventana de 5 días consecutivos, es decir 1\,440 muestras de 5~min, la misma duración que el conjunto de prueba sintético (Sección~\ref{subsec:datos_sinteticos}); así, el tamaño de la evaluación y la proporción de muestras con fallo son comparables entre ambos escenarios.
+% CONFIRMAR: si hubo otra razón para los 5 días (p. ej. cubrir varios ciclos día-noche, o que en
+% un registro de ocho semanas todavía existan ventanas con pocos huecos), agregarla aquí.
+Entre las ventanas de 5 días que empiezan a medianoche se eligió la de menor proporción de muestras sin lectura, ya que esas muestras no tienen referencia y no entran en el cálculo del error. Se exigió además que ningún intervalo sin comidas registradas ni sin bolos registrados superara las 18~h, para que $u(k)$ y $m(k)$ no queden en cero solo por falta de registro. En el paciente 540 ninguna ventana cumplía esa condición y se tomó la de mejor cobertura, con 19.5~h como máximo sin comida (Tabla~\ref{tab:ohio_ventanas}). Los huecos que quedan dentro de cada ventana se conservan en la señal: el detector debe marcarlos, aunque no entran en las métricas de error.
+ 
 \begin{table}[H]
-    \centering
-    \caption{Cinco intervalos más largos con datos faltantes identificados en el sujeto evaluado del conjunto OhioT1DM.}
-    \label{tab:ohio_gaps}
-    \begin{tabular}{lcc}
-        \toprule
-        \textbf{Inicio} & \textbf{Fin} & \textbf{Duración (h)} \\
-        \midrule
-        2021-12-07 00:00 & 2021-12-07 16:20 & 16.4 \\
-        2022-01-07 18:30 & 2022-01-08 06:25 & 12.0 \\
-        2022-01-09 01:20 & 2022-01-09 06:10 & 4.9 \\
-        2021-12-24 02:55 & 2021-12-24 07:00 & 4.2 \\
-        2021-12-18 05:00 & 2021-12-18 08:30 & 3.6 \\
-        \bottomrule
-    \end{tabular}
+\centering
+\footnotesize
+\caption{Ventana de 5 días seleccionada para cada paciente. Huecos: porcentaje de muestras sin lectura de glucosa. Las dos últimas columnas dan el mayor intervalo seguido sin comida registrada y sin bolo registrado.}
+\label{tab:ohio_ventanas}
+\begin{tabular}{cccc}
+\toprule
+\textbf{Paciente} & \textbf{Huecos (\%)} & \textbf{Máx. sin comida (h)} & \textbf{Máx. sin bolo (h)} \\
+\midrule
+540 & 5.97 & 19.5 & 12.4 \\
+559 & 2.22 & 14.2 & 14.3 \\
+596 & 0.07 & 13.5 & 16.6 \\
+\bottomrule
+\end{tabular}
 \end{table}
-
-La ausencia de una traza de glucosa de referencia implica que sobre OhioT1DM solo es posible reportar métricas de clasificación para la detección de fallos, complementadas con un análisis cualitativo del comportamiento de la imputación durante los segmentos faltantes. Esta limitación motiva el uso complementario del conjunto sintético basado en Sorensen, que sí dispone de una señal de referencia y, por lo tanto, permite cuantificar el error de reconstrucción mediante métricas de regresión.
-
-En el trabajo previo del grupo de investigación~\cite{sanchez2025imputation} la validación clínica se realizó sobre un único paciente del conjunto OhioT1DM. En la presente tesis se contempla extender esta validación a un subconjunto de entre tres y cinco pacientes con el objetivo de evaluar la variabilidad inter-sujeto y la capacidad de generalización del sistema bajo condiciones reales heterogéneas, sin requerir un nuevo entrenamiento de los modelos.
+% CONFIRMAR: los huecos (5.97, 2.22, 0.07) son los que usa el pipeline al cargar la ventana;
+% el script de selección guardó 5.90, 2.22 y 0.00 (difiere en una muestra en 540 y 596).
+ 
+\paragraph{Entradas de insulina y carbohidratos.} Los registros vienen como eventos con marca de tiempo: una lectura de glucosa cada 5~min, la tasa basal y sus modificaciones temporales, los bolos con su dosis y las comidas con los gramos de carbohidratos declarados. Las redes, en cambio, se entrenaron con perfiles continuos de insulina plasmática y de absorción de carbohidratos (Sección~\ref{subsec:datos_sinteticos}), así que los eventos deben convertirse antes de entrar al sistema. Para la insulina, la basal y los bolos se combinan en una tasa de infusión que alimenta el submodelo de absorción subcutánea del simulador con el que se generaron los datos de entrenamiento, con los parámetros de su sujeto virtual; la salida es insulina plasmática en mU/L, la misma variable que vieron las redes. Con los carbohidratos se procede igual, a través del submodelo gastrointestinal del mismo simulador. Si una comida figura sin gramos, o un bolo declara carbohidratos sin comida asociada, se recurre al valor introducido en el asistente de bolo.
+% CONFIRMAR: nombre exacto de los submodelos (absorción subcutánea de insulina y gastrointestinal)
+% según el Apéndice de Sorensen; en el código se citan como sub-modelos de Dalla Man.
+ 
+La señal de carbohidratos necesita además un ajuste de escala. El submodelo entrega la cantidad de carbohidrato presente en el intestino, en mg, mientras que las redes se entrenaron con una tasa de absorción en mg/min cuya escala exacta no se logró reproducir a partir de los gramos declarados. Por eso la señal de cada paciente se multiplica por un solo factor, sin desplazar su media, que iguala su desviación estándar con la de la señal de entrenamiento. El factor se calcula con el resto del registro, fuera de la ventana evaluada, de modo que la calibración no usa datos de la evaluación.
+ 
+Antes del inicio de cada ventana se simulan además 24~h de eventos, para que los submodelos no partan de cero. Esas horas alimentan las entradas, pero no forman parte de los 5 días ni de la evaluación. Por último, las entradas se normalizan con la media y la desviación estándar del entrenamiento, como en los experimentos con Sorensen.
+ 
+\paragraph{Fallos y referencia.} Sobre cada ventana se inyecta una única señal corrupta con el protocolo de la Sección~\ref{subsec:inyeccion_fallos}: dos ráfagas de ruido blanco ($\sigma = 5.6$~mg/dL, amplitud máxima de 30~mg/dL) de 30 y 35 muestras, y dos desconexiones de 50 y 20 muestras (4.2 y 1.7~h) en las que la lectura pasa a cero. En total son 135 muestras, el 9.4\,\% de la ventana. Los rangos se fijaron a mano, alejados de los huecos reales y del arranque, y las desconexiones se ubicaron sobre excursiones de glucosa para que los indicadores clínicos tuvieran algo que discriminar: entre 36 y 38 de las 135 muestras de falla de cada paciente tienen una referencia superior a 250~mg/dL. La misma señal corrupta se usa con las dos configuraciones y en todos los análisis.
+% NOTA: el Capítulo 3 redondea las desconexiones a 4 y 1.5 h, como el artículo; a 5 min por muestra son 4.17 y 1.67 h.
+% CONFIRMAR: que la ubicación sobre excursiones fue deliberada (corrida _exc) y que
+% "36 a 38" corresponde a la columna fallas_ref_gt250 de la hoja ComposicionFallas.
+ 
+La referencia es la lectura original del sensor antes de corromperla, y con ella se calculan el error de imputación (D1 y D3) y los indicadores clínicos. Es la medición del propio sensor, no la glucosa en sangre, y los fallos inyectados no reproducen del todo los naturales. Se trata de una aproximación que permite completar la evaluación sobre datos reales.
 
 \subsection{Inyección controlada de fallos}
 \label{subsec:inyeccion_fallos}
@@ -1926,14 +1946,70 @@ TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenar
 
 Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas $+0,1$ puntos porcentuales para GRU$\to$1D-CNN (16,3\,\% $\to$ 16,4\,\%) frente a $+0,8$ para GRU$\to$GRU (16,3\,\% $\to$ 17,1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5,7\,\%) mientras GRU$\to$GRU se desvía una décima (5,6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario --- que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados --- pero aquí ocurre lo opuesto para GRU$\to$GRU: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, lo que añade variabilidad en lugar de esconderla.
 
-Las diferencias son pequeñas en términos absolutos, y es justo ese el punto: sobre una simulación que apenas se mueve dentro del rango normoglucémico, ni el mejor ni el peor de los dos pipelines tiene margen para mostrar mucho más. La validación con OhioT1DM, con pacientes reales y excursiones glucémicas genuinas, es donde esta comparación puede volverse clínicamente decisiva.
+Las diferencias son pequeñas en términos absolutos, y es justo ese el punto: sobre una simulación que apenas se mueve dentro del rango normoglucémico, ni el mejor ni el peor de los dos pipelines tiene margen para mostrar mucho más. Esa misma comparación se repite con pacientes reales, cuyas excursiones glucémicas sí alcanzan los rangos de hipo e hiperglucemia, en la Sección~\ref{sec:validacion_ohio}.
 
+ 
 \section{Validación en datos reales OhioT1DM}
-
+\label{sec:validacion_ohio}
+ 
+Los parámetros del sistema se fijaron con datos sintéticos, y su capacidad de generalizar a registros reales es parte de lo que se evalúa aquí, no algo que se dé por supuesto. OhioT1DM sirve para ello porque reúne, en pacientes reales, las tres variables que consume el sistema --glucosa del sensor, insulina administrada y carbohidratos ingeridos-- y contiene interrupciones naturales del sensor.
+ 
+Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección, la imputación, los indicadores clínicos y, al final, una comprobación sobre la forma de construir las entradas de insulina y carbohidratos.
+ 
+\subsection{Detección de fallos}
+\label{subsec:ohio_deteccion}
+ 
+El detector es la GRU en ambas configuraciones, por lo que la detección es idéntica para GRU\,$\rightarrow$\,GRU y GRU\,$\rightarrow$\,1D-CNN (Sección~\ref{subsec:independencia}). La Tabla~\ref{tab:ohio_deteccion} reporta el desempeño por paciente, promediado sobre las 5 redes, y el agregado como media y desviación estándar entre los tres pacientes. Se evalúan juntos los huecos reales y los fallos inyectados.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Detección de fallos en OhioT1DM con los modelos congelados (huecos reales y fallos inyectados). Rec.\ desc.\ y Rec.\ ruido: recall por tipo de fallo; FPR: fracción de muestras limpias señaladas como fallo; FA/día: falsas alarmas por día. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
+\label{tab:ohio_deteccion}
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Paciente} & \textbf{Recall} & \textbf{Rec.\ desc.} & \textbf{Rec.\ ruido} & \textbf{Prec.} & \textbf{F1} & \textbf{AUC} & \textbf{FPR (\%)} & \textbf{FA/día} \\
+\midrule
+540   & 0.785 & 1.000 & 0.274 & 0.793 & 0.788 & 0.927 & 3.8 & 9.2 \\
+559   & 0.683 & 1.000 & 0.185 & 0.561 & 0.615 & 0.861 & 7.2 & 18.2 \\
+596   & 0.574 & 1.000 & 0.108 & 0.907 & 0.703 & 0.887 & 0.6 & 1.6 \\
+\midrule
+Media & 0.681 & 1.000 & 0.189 & 0.754 & 0.702 & 0.892 & 3.9 & 9.7 \\
+DE    & 0.106 & 0.000 & 0.083 & 0.176 & 0.087 & 0.033 & 3.3 & 8.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+Las desconexiones se detectan en su totalidad en los tres pacientes. Las ráfagas de ruido son la parte difícil: solo se señala entre el 11 y el 27\,\% de sus muestras, lo que deja el recall global entre 0.57 y 0.79. La precisión va de 0.56 a 0.91 según el paciente y sigue a las falsas alarmas: 1.6 por día en el 596, 9.2 en el 540 y 18.2 en el 559.
+ 
+Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~\ref{tab:ohio_fpr_rangos}). Por debajo de 250~mg/dL la tasa se mantiene entre 0.0 y 6.0\,\%; por encima sube a 37.1\,\% en el 540 y a 63.3\,\% en el 559, sobre 48 y 108 muestras limpias respectivamente. El 596 no tiene muestras limpias en ese rango.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\caption{Tasa de falsas alarmas (\%) sobre muestras limpias, por rango de glucosa de la referencia. Entre paréntesis, número de muestras limpias del rango (media de las 5 redes).}
+\label{tab:ohio_fpr_rangos}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Paciente} & \textbf{<70} & \textbf{70--180} & \textbf{180--250} & \textbf{>250} \\
+\midrule
+540 & 6.0 (143) & 1.7 (911) & 3.6 (112) & 37.1 (48) \\
+559 & 0.5 (43)  & 1.7 (797) & 2.9 (319) & 63.3 (108) \\
+596 & 0.0 (16)  & 0.5 (1\,072) & 1.4 (210) & --- (0) \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+% PENDIENTE: comparación de estas cifras con la Tabla 6 del artículo (Ohio, un paciente,
+% solo métricas de clasificación). Se redacta cuando esté claro qué pesos y datos usó esa validación.
+ 
+La interpretación de estas cifras, en particular la del ruido y la de las falsas alarmas por encima de 250~mg/dL, se retoma en el Capítulo~\ref{cap:discusion}.
 % =================================================
 % CAPÍTULO 5. DISCUSIÓN
 % =================================================
 \chapter{Discusión}
+\label{cap:discusion}
 
 \section{Hallazgos principales y comparación con el estado del arte}
 \section{Trade-off precisión–recall del umbral adaptativo: justificación clínica}
