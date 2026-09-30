@@ -1,4 +1,4 @@
-function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_data_ohio(window_mat_path, std_m_ref)
+function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_data_ohio(window_mat_path, std_m_ref, exo_repr, kernel_opts)
 %LOAD_AND_PREPARE_DATA_OHIO  Carga la ventana de datos reales de OhioT1DM
 %   ya seleccionada (main_ohio_window_selection_v5.m) y construye las
 %   señales necesarias para el pipeline de deteccion+imputacion: g_test,
@@ -31,6 +31,19 @@ function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_d
 % Entradas:
 %   window_mat_path - .mat de main_ohio_window_selection_v5.m
 %   std_m_ref       - (opcional) std de referencia para calibrar m(k)
+%   exo_repr        - (opcional) como se construyen u(k) y m(k). Default 'ode'.
+%       'ode'            sub-modelos de Dalla Man/Sorensen (comportamiento original)
+%       'kernel'         kernels gamma de literatura (insulina 70/270 min, CHO 45/210 min)
+%       'kernel_matched' kernels gamma ajustados a la respuesta del propio ODE
+%       'impulse'        impulsos crudos: bolo [U] y carbohidratos [g]
+%       'custom'         kernel_opts.custom_builder = @(ctx) -> [u_full, m_full]; ctx trae
+%                        grid_ts, window_data, Ts_min, subj y calib_factor (ver abajo)
+%       {'ode','impulse'} celda de dos nombres: representacion de u y de m por separado
+%     Todos comparten ventana, pre-roll, huecos, true_f, g_test y normalizacion; solo
+%     cambia la construccion de u y m. En 'kernel*' y 'custom' la escala de m usa el
+%     mismo calib_factor que 'ode'. NO confundir con input_mode de
+%     main_pipeline_ohio_v4.m ('real'/'neutral'), que es un control aparte.
+%   kernel_opts     - (opcional) struct para build_ohio_kernel_signals / 'custom'
 %
 % Salidas:
 %   g_test, g_test_real, u, m - vectores columna, longitud N (solo ventana)
@@ -40,6 +53,20 @@ function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_d
 
     if nargin < 2
         std_m_ref = [];
+    end
+    if nargin < 3 || isempty(exo_repr), exo_repr = 'ode'; end
+    if nargin < 4 || isempty(kernel_opts), kernel_opts = struct(); end
+
+    % Dos representaciones distintas: u de la primera y m de la segunda
+    if iscell(exo_repr)
+        if numel(exo_repr) ~= 2
+            error('exo_repr en celda debe ser {repr_u, repr_m}.');
+        end
+        [g_test, g_test_real, u, ~, true_f, grid_ts, meta] = ...
+            load_and_prepare_data_ohio(window_mat_path, std_m_ref, exo_repr{1}, kernel_opts);
+        [~, ~, ~, m] = load_and_prepare_data_ohio(window_mat_path, std_m_ref, exo_repr{2}, kernel_opts);
+        meta.exo_repr = [exo_repr{1} '+' exo_repr{2}];
+        return;
     end
 
     Ts_min = 5;
@@ -73,8 +100,6 @@ function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_d
     subj = subject2_params();
 
     %% 4) Insulina y comida sobre la rejilla extendida, luego recorte
-    u_full = build_ohio_insulin_signal(grid_full, window_data.basal, ...
-        window_data.temp_basal, window_data.bolus, Ts_min, subj);
     if isfield(meta, 'std_raw_calib') && ~isempty(meta.std_raw_calib)
         std_raw_calib = meta.std_raw_calib;
     else
@@ -83,8 +108,41 @@ function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_d
                  'Regenera con main_ohio_window_selection_v5.m.']);
         std_raw_calib = [];
     end
-    m_full = build_ohio_meal_signal(grid_full, window_data.meal, ...
-        window_data.bolus, Ts_min, subj, std_m_ref, std_raw_calib);
+    switch lower(exo_repr)
+        case 'ode'
+            u_full = build_ohio_insulin_signal(grid_full, window_data.basal, ...
+                window_data.temp_basal, window_data.bolus, Ts_min, subj);
+            m_full = build_ohio_meal_signal(grid_full, window_data.meal, ...
+                window_data.bolus, Ts_min, subj, std_m_ref, std_raw_calib);
+
+        case {'kernel', 'kernel_matched', 'custom'}
+            % El factor de calibracion de m(k) sale del brazo ODE para que la escala
+            % sea identica; solo cambia la dinamica de absorcion.
+            [~, ~, ~, ~, ~, calib_factor] = build_ohio_meal_signal(grid_full, ...
+                window_data.meal, window_data.bolus, Ts_min, subj, std_m_ref, std_raw_calib);
+            if strcmpi(exo_repr, 'custom')
+                if ~isfield(kernel_opts, 'custom_builder')
+                    error('exo_repr ''custom'' requiere kernel_opts.custom_builder.');
+                end
+                ctx = struct('grid_ts', grid_full, 'window_data', window_data, ...
+                             'Ts_min', Ts_min, 'subj', subj, 'calib_factor', calib_factor);
+                [u_full, m_full] = kernel_opts.custom_builder(ctx);
+            else
+                if strcmpi(exo_repr, 'kernel_matched'), kernel_opts.preset = 'matched'; end
+                [u_full, m_full, kinfo] = build_ohio_kernel_signals(grid_full, ...
+                    window_data.basal, window_data.temp_basal, window_data.bolus, ...
+                    window_data.meal, Ts_min, subj, calib_factor, kernel_opts);
+                meta.kernel_info = kinfo;
+            end
+
+        case 'impulse'
+            [u_full, m_full] = build_ohio_impulse_signals(grid_full, ...
+                window_data.bolus, window_data.meal);
+
+        otherwise
+            error('load_and_prepare_data_ohio: exo_repr ''%s'' desconocido.', exo_repr);
+    end
+    meta.exo_repr = lower(exo_repr);
 
     u = u_full(n_pre+1:end);
     m = m_full(n_pre+1:end);
@@ -110,8 +168,8 @@ function [g_test, g_test_real, u, m, true_f, grid_ts, meta] = load_and_prepare_d
     meta.n_preroll = n_pre;
 
     fprintf(['load_and_prepare_data_ohio: paciente %s | %d muestras | ' ...
-             '%.2f%% huecos reales | pre-roll %.1f h\n'], ...
-        meta.patient_id, N, 100*sum(gap_mask)/N, n_pre*Ts_min/60);
+             '%.2f%% huecos reales | pre-roll %.1f h | u,m: %s\n'], ...
+        meta.patient_id, N, 100*sum(gap_mask)/N, n_pre*Ts_min/60, meta.exo_repr);
 end
 
 function [g_raw, gap_mask] = build_glucose_on_grid(grid_ts, glucose, Ts_min)
