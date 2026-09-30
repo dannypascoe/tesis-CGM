@@ -481,9 +481,7 @@ Entre las ventanas de 5 días que empiezan a medianoche se eligió la de menor p
 \end{tabular}
 \end{table}
 
-\paragraph{Entradas de insulina y carbohidratos.} Los registros vienen como eventos con marca de tiempo: una lectura de glucosa cada 5~min, la tasa basal y sus modificaciones temporales, los bolos con su dosis y las comidas con los gramos de carbohidratos declarados. Las redes, en cambio, se entrenaron con perfiles continuos de insulina plasmática y de absorción de carbohidratos (Sección~\ref{subsec:datos_sinteticos}), así que los eventos deben convertirse antes de entrar al sistema. Para la insulina, la basal y los bolos se combinan en una tasa de infusión que alimenta el submodelo de absorción subcutánea del simulador con el que se generaron los datos de entrenamiento, con los parámetros de su sujeto virtual; la salida es insulina plasmática en mU/L, la misma variable que vieron las redes. Con los carbohidratos se procede igual, a través del submodelo gastrointestinal del mismo simulador. Si una comida figura sin gramos, o un bolo declara carbohidratos sin comida asociada, se recurre al valor introducido en el asistente de bolo.
-% CONFIRMAR: nombre exacto de los submodelos (absorción subcutánea de insulina y gastrointestinal)
-% según el Apéndice de Sorensen; en el código se citan como sub-modelos de Dalla Man.
+\paragraph{Entradas de insulina y carbohidratos.} Los registros vienen como eventos con marca de tiempo: una lectura de glucosa cada 5~min, la tasa basal y sus modificaciones temporales, los bolos con su dosis y las comidas con los gramos de carbohidratos declarados. Las redes, en cambio, se entrenaron con perfiles continuos de insulina plasmática y de absorción de carbohidratos (Sección~\ref{subsec:datos_sinteticos}), así que los eventos deben convertirse antes de entrar al sistema. Para la insulina, la basal y los bolos se combinan en una tasa de infusión que pasa por el submodelo de absorción subcutánea del modelo de Sorensen (Sección~\ref{subsec:datos_sinteticos}), con sus parámetros fijos, los mismos para los tres pacientes; la salida es insulina plasmática en mU/L, la misma variable que vieron las redes. Con los carbohidratos se procede igual, a través del submodelo de absorción gastrointestinal del mismo modelo. Si una comida figura sin gramos, o un bolo declara carbohidratos sin comida asociada, se recurre al valor introducido en el asistente de bolo.
  
 La señal de carbohidratos necesita además un ajuste de escala. El submodelo entrega la cantidad de carbohidrato presente en el intestino, en mg, mientras que las redes se entrenaron con una tasa de absorción en mg/min cuya escala exacta no se logró reproducir a partir de los gramos declarados. Por eso la señal de cada paciente se multiplica por un solo factor, sin desplazar su media, que iguala su desviación estándar con la de la señal de entrenamiento. El factor se calcula con el resto del registro, fuera de la ventana evaluada, de modo que la calibración no usa datos de la evaluación.
  
@@ -1962,8 +1960,91 @@ Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~
  
 La interpretación de estas cifras, en particular la del ruido y la de las falsas alarmas por encima de 250~mg/dL, se retoma en el Capítulo~\ref{cap:discusion}.
 
+
 \subsection{Imputación}
 \label{subsec:ohio_imputacion}
+ 
+El error de imputación se mide con las dos definiciones de la Sección~\ref{sec:pipeline-desacoplado}: D1, sobre todas las muestras que tienen referencia, y D3, solo sobre las muestras con fallo inyectado, separadas por tipo. La referencia es la lectura original del sensor (Sección~\ref{subsec:datos_reales}), de modo que los huecos reales quedan fuera de ambas. Como punto de comparación se incluye el último valor conocido: en D1, la persistencia, que repite la glucosa de la muestra anterior, y en D3, el LOCF, que mantiene durante la falla la última lectura válida. La Tabla~\ref{tab:ohio_imputacion} reúne los resultados por paciente.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{Error de imputación en OhioT1DM (mg/dL). D1: todas las muestras con referencia. D3: muestras con fallo inyectado, por tipo de fallo. Último valor: persistencia en D1 y LOCF en D3. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
+\label{tab:ohio_imputacion}
+\begin{tabular}{llcccc}
+\toprule
+& & \multicolumn{2}{c}{\textbf{D1}} & \multicolumn{2}{c}{\textbf{D3}} \\
+\cmidrule(lr){3-4} \cmidrule(lr){5-6}
+\textbf{Paciente} & \textbf{Configuración} & MAE & RMSE & Desconexión & Ruido \\
+\midrule
+540 & GRU\,$\rightarrow$\,GRU    & 12.05 & 37.58 & 137.15 & 5.63 \\
+    & GRU\,$\rightarrow$\,1D-CNN & 14.75 & 36.35 & 135.31 & 5.63 \\
+    & Último valor               &  3.90 &  5.40 &  64.07 & 19.23 \\
+\midrule
+559 & GRU\,$\rightarrow$\,GRU    & 12.37 & 31.79 & 110.75 & 3.52 \\
+    & GRU\,$\rightarrow$\,1D-CNN & 16.05 & 32.01 & 113.21 & 3.52 \\
+    & Último valor               &  4.17 &  5.95 &  48.76 & 30.03 \\
+\midrule
+596 & GRU\,$\rightarrow$\,GRU    &  9.75 & 31.70 & 132.80 & 4.85 \\
+    & GRU\,$\rightarrow$\,1D-CNN & 13.61 & 34.21 & 141.68 & 4.82 \\
+    & Último valor               &  2.59 &  3.73 &  49.03 & 14.54 \\
+\midrule
+\multicolumn{2}{l}{Media $\pm$ DE} & & & & \\
+\multicolumn{2}{l}{\quad GRU\,$\rightarrow$\,GRU}    & 11.39 $\pm$ 1.43 & 33.69 $\pm$ 3.37 & 126.90 $\pm$ 14.16 & 4.66 $\pm$ 1.07 \\
+\multicolumn{2}{l}{\quad GRU\,$\rightarrow$\,1D-CNN} & 14.81 $\pm$ 1.22 & 34.19 $\pm$ 2.17 & 130.07 $\pm$ 14.94 & 4.65 $\pm$ 1.06 \\
+\multicolumn{2}{l}{\quad Último valor}               & 3.55 $\pm$ 0.84  & 5.03 $\pm$ 1.15  & 53.95 $\pm$ 8.76   & 21.27 $\pm$ 7.94 \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+En D1, GRU\,$\rightarrow$\,GRU obtiene 11.39 $\pm$ 1.43~mg/dL y GRU\,$\rightarrow$\,1D-CNN 14.81 $\pm$ 1.22~mg/dL, frente a 3.55 $\pm$ 0.84~mg/dL de la persistencia. El orden entre las dos configuraciones se repite en los tres pacientes, y en los tres ambas quedan por encima de la persistencia. En las desconexiones, D3 vale 126.90 $\pm$ 14.16 y 130.07 $\pm$ 14.94~mg/dL, contra 53.95 $\pm$ 8.76~mg/dL del LOCF. La diferencia entre configuraciones en D3 va de 2 a 9~mg/dL según el paciente y cambia de signo: es menor con GRU\,$\rightarrow$\,1D-CNN en el 540 y con GRU\,$\rightarrow$\,GRU en el 559 y el 596. Con datos de Sorensen, GRU\,$\rightarrow$\,1D-CNN reconstruía las muestras con fallo con un error de 5.4~mg/dL frente a 14.3~mg/dL de GRU\,$\rightarrow$\,GRU (Tabla~\ref{tab:44-mae-d3}); en Ohio el D3 sobre todas las fallas es de 68.0 y 69.7~mg/dL, sin ventaja para ninguna de las dos.
+ 
+El D3 de ruido, de 4.7~mg/dL en ambas configuraciones, es del mismo orden que la desviación media del ruido respecto a la referencia, entre 4 y 5~mg/dL. No mide una reconstrucción lograda: la mayor parte de esas muestras no se sustituye (Sección~\ref{subsec:ohio_deteccion}), y lo que sale es la propia lectura ruidosa.
+ 
+La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Las curvas de color aparecen solo donde el detector señaló una muestra; en el resto la salida coincide con la lectura, y queda debajo de la referencia o, dentro de las ráfagas de ruido, de la línea gris. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella en cuanto el sensor reanuda la lectura. Los tramos cortos de color fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}). Los huecos reales, en gris, también se imputan, pero sin referencia no entran en el error.
+ 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_ohio_reconstruccion_ventanas.eps}
+    \caption{Reconstrucción de la señal en la ventana de 5 días de los pacientes (a)~540, (b)~559 y (c)~596, con las dos configuraciones co-óptimas. La línea negra es la referencia (lectura original del sensor) y la gris punteada, la lectura con fallo. Las curvas naranja (GRU\,$\rightarrow$\,GRU) y morada (GRU\,$\rightarrow$\,1D-CNN) son el promedio de las cinco redes y se dibujan solo en las muestras donde el pipeline sustituyó la lectura. Las franjas marcan la desconexión inyectada (rosa), el ruido blanco inyectado (amarillo) y los huecos reales del sensor (gris). El tiempo se mide en horas desde el inicio de la ventana.}
+    \label{fig:ohio_ventanas}
+\end{figure}
+ 
+La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. En las tres desconexiones de 50 muestras (4.2~h, paneles a--c) la referencia sube hasta 322, 292 y 310~mg/dL en los pacientes 540, 559 y 596, mientras que las dos configuraciones parten de la última lectura válida (196, 191 y 218~mg/dL) y descienden. GRU\,$\rightarrow$\,GRU llega a mínimos de 71, 66 y 106~mg/dL, y GRU\,$\rightarrow$\,1D-CNN de 94, 96 y 96~mg/dL; esta última se estabiliza cerca de 100~mg/dL, mientras que la primera sigue bajando hasta el final del episodio en el paciente 559. Cuando el sensor reanuda la lectura, el pipeline sustituye una muestra más y luego regresa a ella con saltos de 80 a 128~mg/dL. La razón de este descenso se discute en el Capítulo~\ref{cap:discusion}.
+ 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_ohio_reconstruccion_episodios.eps}
+    \caption{Acercamiento a los episodios inyectados más largos de cada tipo en los pacientes 540 (columna izquierda), 559 (central) y 596 (derecha). Arriba, (a)--(c): desconexión de 50 muestras (4.2~h). Abajo, (d)--(f): ráfaga de ruido blanco de 35 muestras (2.9~h), que cae en las mismas muestras de los tres pacientes. Las curvas y las franjas son las de la Figura~\ref{fig:ohio_ventanas}; el tiempo se mide en horas desde el inicio de la ventana.}
+    \label{fig:ohio_episodios}
+\end{figure}
+ 
+En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala 15, 4 y 5 de las 35 muestras de la ráfaga. La curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en los tramos de ruido, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras.
+ 
+El error dentro de la desconexión crece con el tiempo transcurrido desde su inicio (Tabla~\ref{tab:ohio_error_tiempo}). En los primeros 30~min es de 40~mg/dL con GRU\,$\rightarrow$\,GRU y de 54~mg/dL con GRU\,$\rightarrow$\,1D-CNN; a la hora ya pasa de 90~mg/dL en ambas, y entre los 105 y los 150~min ronda los 195~mg/dL. El LOCF sube más despacio, de 26 a 89~mg/dL en esos mismos rangos. Los tres últimos rangos incluyen solo las desconexiones de 50 muestras, una por paciente, de modo que su nivel depende del lugar de la ventana en que cayó cada una; la comparación con el LOCF, en cambio, se hace sobre las mismas muestras.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{6pt}
+\caption{Error dentro de las desconexiones inyectadas según el tiempo transcurrido desde su inicio (MAE respecto a la referencia, mg/dL; 3 pacientes y 5 redes). El LOCF mantiene la última lectura válida. Los tres primeros rangos reúnen las dos desconexiones de cada paciente (6 en total); los tres últimos, solo las de 50 muestras (3).}
+\label{tab:ohio_error_tiempo}
+\begin{tabular}{lccc}
+\toprule
+& \multicolumn{3}{c}{\textbf{MAE (mg/dL)}} \\
+\cmidrule(lr){2-4}
+\textbf{Tiempo desde el inicio} & GRU\,$\rightarrow$\,GRU & GRU\,$\rightarrow$\,1D-CNN & LOCF \\
+\midrule
+5--30~min    & 40.1  & 54.2  & 25.9 \\
+35--60~min   & 94.2  & 113.3 & 50.0 \\
+65--100~min  & 126.5 & 134.7 & 58.2 \\
+105--150~min & 195.7 & 192.7 & 89.1 \\
+155--200~min & 177.7 & 165.4 & 67.9 \\
+205--250~min & 151.2 & 135.8 & 36.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Validación clínica e impacto sobre indicadores TIR/hipo/hiper}
 \label{sec:validacion_clinica}
