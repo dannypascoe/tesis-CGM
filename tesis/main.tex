@@ -154,7 +154,7 @@ La factibilidad del proyecto, por su parte, no depende únicamente de argumentos
 
 La hipótesis de este trabajo es que sustituir el umbral fijo de detección por uno que se adapte al contexto glucémico, y evaluar de manera independiente las combinaciones posibles entre detector e imputador, produce un sistema de detección e imputación en línea con mejor desempeño técnico que el esquema unificado y de umbral fijo del trabajo previo: menos falsos positivos en la detección de fallos y una reconstrucción de la señal más precisa.
 
-Se espera también que esta mejora técnica no se quede en las métricas de señal. Al evaluar el sistema propuesto sobre un conjunto más amplio de pacientes reales de OhioT1DM, y no solo sobre el paciente único que consideró el trabajo previo, los indicadores clínicos de control glucémico --tiempo en rango, variabilidad, riesgo de hipo o hiperglucemia-- deberían reflejar una ganancia consistente con la mejora observada a nivel de señal.
+Se espera además que el sistema conserve su desempeño al pasar de datos simulados a reales. Aplicado sin reajuste a registros de OhioT1DM, en tres pacientes y no solo en el único que consideró el trabajo previo, debería detectar las desconexiones del sensor y reconstruir la señal de modo que los indicadores clínicos de control glucémico --tiempo en rango, variabilidad y riesgo de hipo o hiperglucemia-- queden cerca de los de la señal de referencia.
 
 \section{Objetivos}
 \label{sec:objetivos}
@@ -402,7 +402,7 @@ Para reproducir la dinámica glucosa--insulina--carbohidratos en un adulto con d
 
 La simulación contempla absorción continua tanto para la insulina como para los carbohidratos, en lugar de impulsos instantáneos, reflejando así la dinámica biológica realista del organismo. La concentración de glucosa $G_{CGM}(t)$ representa la glucosa plasmática medida por un sensor CGM (mg/dL); la concentración de insulina $I(t)$ denota la insulina plasmática tras la administración basal y de bolos (mU/L); y la ingesta de carbohidratos $\mathit{CHO}(t)$ modela las tasas de absorción gastrointestinal (mg/min).
 
-Se generaron 1\,400 observaciones muestreadas cada 5~min sobre un horizonte simulado de 5~días, proporcionando una granularidad temporal suficiente para capturar la variabilidad de la glucosa, la dinámica de la insulina y la absorción de los alimentos, como se ilustra en la Figura~\ref{fig:datos_sinteticos}. Al incorporar retardos fisiológicos de absorción y respuestas metabólicas no lineales, el modelo de Sorensen produce datos realistas y libres de artefactos, lo que constituye un entorno virtual confiable para evaluar estrategias de detección de fallos, algoritmos de control y métodos de imputación en línea bajo condiciones cercanas a las clínicas. Este conjunto se emplea para el entrenamiento y la validación interna de las redes neuronales. Adicionalmente, una segunda simulación independiente del modelo, descrita en la Sección~\ref{subsec:inyeccion_fallos}, se utiliza como conjunto de prueba con fallos inyectados de manera controlada para la evaluación cuantitativa final del sistema.
+Se generaron 1\,400 observaciones muestreadas cada 5~min sobre un horizonte simulado de aproximadamente 5~días, proporcionando una granularidad temporal suficiente para capturar la variabilidad de la glucosa, la dinámica de la insulina y la absorción de los alimentos, como se ilustra en la Figura~\ref{fig:datos_sinteticos}. Al incorporar retardos fisiológicos de absorción y respuestas metabólicas no lineales, el modelo de Sorensen produce datos realistas y libres de artefactos, lo que constituye un entorno virtual confiable para evaluar estrategias de detección de fallos, algoritmos de control y métodos de imputación en línea bajo condiciones cercanas a las clínicas. Este conjunto se emplea para el entrenamiento y la validación interna de las redes neuronales. Adicionalmente, una segunda simulación independiente del modelo, descrita en la Sección~\ref{subsec:inyeccion_fallos}, se utiliza como conjunto de prueba con fallos inyectados de manera controlada para la evaluación cuantitativa final del sistema.
 
  \begin{figure}[h]
      \centering
@@ -461,9 +461,8 @@ A diferencia de los datos sintéticos, los registros de OhioT1DM contienen fallo
  
 \paragraph{Pacientes.} Se usaron tres de los doce pacientes: 540, 559 y 596 (marcados en la Tabla~\ref{tab:ohio_cohort}). Pertenecen a las dos cohortes, 2018 y 2020, y a tres rangos de edad, de 20--40 a 60--80 años. Con tres pacientes el análisis es descriptivo: sirve para ver si el desempeño cambia entre perfiles distintos, no para estimar el de la población.
  
-\paragraph{Ventanas de evaluación.} Para cada paciente se usa una ventana de 5 días consecutivos, es decir 1\,440 muestras de 5~min, la misma duración que el conjunto de prueba sintético (Sección~\ref{subsec:datos_sinteticos}); así, el tamaño de la evaluación y la proporción de muestras con fallo son comparables entre ambos escenarios.
-% CONFIRMAR: si hubo otra razón para los 5 días (p. ej. cubrir varios ciclos día-noche, o que en
-% un registro de ocho semanas todavía existan ventanas con pocos huecos), agregarla aquí.
+\paragraph{Ventanas de evaluación.} Para cada paciente se usa una ventana continua de 5 días, es decir 1\,440 muestras de 5~min, de duración comparable a la del conjunto de prueba sintético, que tiene 1\,400 (Sección~\ref{subsec:datos_sinteticos}). Es un periodo lo bastante largo para representar distintas dinámicas glucémicas y alojar las cuatro fallas inyectadas.
+
 Entre las ventanas de 5 días que empiezan a medianoche se eligió la de menor proporción de muestras sin lectura, ya que esas muestras no tienen referencia y no entran en el cálculo del error. Se exigió además que ningún intervalo sin comidas registradas ni sin bolos registrados superara las 18~h, para que $u(k)$ y $m(k)$ no queden en cero solo por falta de registro. En el paciente 540 ninguna ventana cumplía esa condición y se tomó la de mejor cobertura, con 19.5~h como máximo sin comida (Tabla~\ref{tab:ohio_ventanas}). Los huecos que quedan dentro de cada ventana se conservan en la señal: el detector debe marcarlos, aunque no entran en las métricas de error.
  
 \begin{table}[H]
@@ -481,9 +480,7 @@ Entre las ventanas de 5 días que empiezan a medianoche se eligió la de menor p
 \bottomrule
 \end{tabular}
 \end{table}
-% CONFIRMAR: los huecos (5.97, 2.22, 0.07) son los que usa el pipeline al cargar la ventana;
-% el script de selección guardó 5.90, 2.22 y 0.00 (difiere en una muestra en 540 y 596).
- 
+
 \paragraph{Entradas de insulina y carbohidratos.} Los registros vienen como eventos con marca de tiempo: una lectura de glucosa cada 5~min, la tasa basal y sus modificaciones temporales, los bolos con su dosis y las comidas con los gramos de carbohidratos declarados. Las redes, en cambio, se entrenaron con perfiles continuos de insulina plasmática y de absorción de carbohidratos (Sección~\ref{subsec:datos_sinteticos}), así que los eventos deben convertirse antes de entrar al sistema. Para la insulina, la basal y los bolos se combinan en una tasa de infusión que alimenta el submodelo de absorción subcutánea del simulador con el que se generaron los datos de entrenamiento, con los parámetros de su sujeto virtual; la salida es insulina plasmática en mU/L, la misma variable que vieron las redes. Con los carbohidratos se procede igual, a través del submodelo gastrointestinal del mismo simulador. Si una comida figura sin gramos, o un bolo declara carbohidratos sin comida asociada, se recurre al valor introducido en el asistente de bolo.
 % CONFIRMAR: nombre exacto de los submodelos (absorción subcutánea de insulina y gastrointestinal)
 % según el Apéndice de Sorensen; en el código se citan como sub-modelos de Dalla Man.
@@ -492,10 +489,7 @@ La señal de carbohidratos necesita además un ajuste de escala. El submodelo en
  
 Antes del inicio de cada ventana se simulan además 24~h de eventos, para que los submodelos no partan de cero. Esas horas alimentan las entradas, pero no forman parte de los 5 días ni de la evaluación. Por último, las entradas se normalizan con la media y la desviación estándar del entrenamiento, como en los experimentos con Sorensen.
  
-\paragraph{Fallos y referencia.} Sobre cada ventana se inyecta una única señal corrupta con el protocolo de la Sección~\ref{subsec:inyeccion_fallos}: dos ráfagas de ruido blanco ($\sigma = 5.6$~mg/dL, amplitud máxima de 30~mg/dL) de 30 y 35 muestras, y dos desconexiones de 50 y 20 muestras (4.2 y 1.7~h) en las que la lectura pasa a cero. En total son 135 muestras, el 9.4\,\% de la ventana. Los rangos se fijaron a mano, alejados de los huecos reales y del arranque, y las desconexiones se ubicaron sobre excursiones de glucosa para que los indicadores clínicos tuvieran algo que discriminar: entre 36 y 38 de las 135 muestras de falla de cada paciente tienen una referencia superior a 250~mg/dL. La misma señal corrupta se usa con las dos configuraciones y en todos los análisis.
-% NOTA: el Capítulo 3 redondea las desconexiones a 4 y 1.5 h, como el artículo; a 5 min por muestra son 4.17 y 1.67 h.
-% CONFIRMAR: que la ubicación sobre excursiones fue deliberada (corrida _exc) y que
-% "36 a 38" corresponde a la columna fallas_ref_gt250 de la hoja ComposicionFallas.
+\paragraph{Fallos y referencia.} Sobre cada ventana se inyecta una única señal corrupta con el protocolo de la Sección~\ref{subsec:inyeccion_fallos}: dos ráfagas de ruido blanco ($\sigma = 5.6$~mg/dL, amplitud máxima de 30~mg/dL) de 30 y 35 muestras, y dos desconexiones de 50 y 20 muestras (4.2 y 1.7~h) en las que la lectura pasa a cero. En total son 135 muestras, el 9.4\,\% de la ventana. Los rangos se fijaron a mano, alejados de los huecos reales y del arranque. Las desconexiones se colocaron sobre tramos de hiperglucemia o hipoglucemia para que los indicadores clínicos tuvieran algo que discriminar: en cada paciente, entre 36 y 38 de las 70 muestras de desconexión tienen una referencia superior a 250~mg/dL.
  
 La referencia es la lectura original del sensor antes de corromperla, y con ella se calculan el error de imputación (D1 y D3) y los indicadores clínicos. Es la medición del propio sensor, no la glucosa en sangre, y los fallos inyectados no reproducen del todo los naturales. Se trata de una aproximación que permite completar la evaluación sobre datos reales.
 
@@ -1055,7 +1049,7 @@ Tres observaciones se desprenden de esta tabla. Primero, en condiciones de gluco
 \subsubsection{Selección empírica de los parámetros}
 \label{subsec:seleccion_parametros}
 
-Los valores $\beta = 0.10$, $\gamma = 0.15$ y $\tau_{\min} = 7$~mg/dL se obtuvieron mediante una exploración sistemática del espacio de parámetros sobre el conjunto de prueba sintético independiente (Sección~\ref{subsec:inyeccion_fallos}). El criterio de selección consideró simultáneamente cuatro objetivos: maximizar la precisión (minimizar falsos positivos), preservar la capacidad de detección (alto recall), mantener la coherencia con los referentes normativos clínicos, y garantizar estabilidad en el comportamiento del umbral a lo largo del rango glucémico.
+Los valores $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL se obtuvieron mediante una exploración sistemática del espacio de parámetros sobre el conjunto de prueba sintético independiente (Sección~\ref{subsec:inyeccion_fallos}). El criterio de selección consideró simultáneamente cuatro objetivos: maximizar la precisión (minimizar falsos positivos), preservar la capacidad de detección (alto recall), mantener la coherencia con los referentes normativos clínicos, y garantizar estabilidad en el comportamiento del umbral a lo largo del rango glucémico.
 
 Un hallazgo particularmente relevante de esta exploración es que el componente de tasa de cambio resulta indispensable para alcanzar los objetivos de diseño. Al fijar $\gamma = 0$ --eliminando así el efecto de la tasa de cambio y dejando un umbral que es función únicamente del nivel de glucosa-- los falsos positivos reaparecen durante periodos de excursiones glucémicas rápidas, particularmente en las transiciones posprandiales. Este comportamiento constituye una validación empírica del rol específico del término de dinámica: la heteroscedasticidad respecto al nivel de glucosa, por sí sola, es necesaria pero no suficiente para una detección robusta en operación en línea. Estos resultados se discuten cuantitativamente en el Capítulo~\ref{cap:resultados}.
 
@@ -1911,50 +1905,12 @@ Sin embargo, reducir el MAE no es el aporte principal del desacoplamiento. Su va
 
 % \section{Pipeline integrado 4×4: análisis de las 16 combinaciones} % contenido de 4.4.
 
-\section{Validación clínica e impacto sobre indicadores TIR/hipo/hiper}
-
-\subsection{Validación clínica en datos sintéticos (Sorensen)}
-\label{subsec:clinico_sorensen}
-
-Aplicamos los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios --- la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline --- para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
-
-\begin{table}[!htb]
-\centering
-\footnotesize
-\caption{Indicadores clínicos sobre la señal sintética de Sorensen, para las dos configuraciones co-óptimas. TIR/TBR/TAR en \% del tiempo; media y SD en          mg/dL; CV en \%; GMI en \% (aproximación no invasiva de HbA1c).}
-\label{tab:clinico_sorensen}
-\begin{tabular}{lccc ccc c}
-\toprule
-& \multicolumn{3}{c}{GRU $\to$ 1D-CNN} & \multicolumn{3}{c}{GRU $\to$ GRU} & \\
-\cmidrule(lr){2-4} \cmidrule(lr){5-7}
-\textbf{Indicador} & Ref. & Sin imp. & Pipeline & Ref. & Sin imp. & Pipeline & \textbf{Objetivo} \\
-\midrule
-TIR (70--180)         & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & $\geq$70\% \\
-TBR L1 (<70)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <4\% \\
-TBR L2 (<54)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <1\% \\
-TAR L1 (180--250)     & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <25\% \\
-TAR L2 (>250)         & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <5\% \\
-Glucosa media (mg/dL) & 98,1  & 97,7  & 98,1  & 98,1  & 97,7  & 97,1  & Informativo \\
-SD (mg/dL)            & 16,0  & 16,5  & 16,1  & 16,0  & 16,5  & 16,6  & Informativo \\
-CV (\%)               & 16,3  & 16,9  & 16,4  & 16,3  & 16,9  & 17,1  & $\leq$36\% \\
-GMI (\%)              & 5,7   & 5,6   & 5,7   & 5,7   & 5,6   & 5,6   & <7\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenarios para ambas configuraciones: 100\,\% de tiempo en rango, 0\,\% en cualquiera de los cuatro niveles de desviación. No es que el pipeline prevenga la hipo o la hiperglucemia --- es que, en esta simulación, la glucosa nunca sale del rango 70--180\,mg/dL, con o sin fallo inyectado. Los cinco indicadores discretos quedan saturados por el propio escenario de prueba, exactamente como se anticipó en la Sección~\ref{subsec:cobertura_clinica}, y ninguna diferencia entre GRU$\to$GRU y GRU$\to$1D-CNN puede manifestarse ahí.
-
-Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas $+0,1$ puntos porcentuales para GRU$\to$1D-CNN (16,3\,\% $\to$ 16,4\,\%) frente a $+0,8$ para GRU$\to$GRU (16,3\,\% $\to$ 17,1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5,7\,\%) mientras GRU$\to$GRU se desvía una décima (5,6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario --- que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados --- pero aquí ocurre lo opuesto para GRU$\to$GRU: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, lo que añade variabilidad en lugar de esconderla.
-
-Las diferencias son pequeñas en términos absolutos, y es justo ese el punto: sobre una simulación que apenas se mueve dentro del rango normoglucémico, ni el mejor ni el peor de los dos pipelines tiene margen para mostrar mucho más. Esa misma comparación se repite con pacientes reales, cuyas excursiones glucémicas sí alcanzan los rangos de hipo e hiperglucemia, en la Sección~\ref{sec:validacion_ohio}.
-
- 
 \section{Validación en datos reales OhioT1DM}
 \label{sec:validacion_ohio}
  
 Los parámetros del sistema se fijaron con datos sintéticos, y su capacidad de generalizar a registros reales es parte de lo que se evalúa aquí, no algo que se dé por supuesto. OhioT1DM sirve para ello porque reúne, en pacientes reales, las tres variables que consume el sistema --glucosa del sensor, insulina administrada y carbohidratos ingeridos-- y contiene interrupciones naturales del sensor.
  
-Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección, la imputación, los indicadores clínicos y, al final, una comprobación sobre la forma de construir las entradas de insulina y carbohidratos.
+Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección, la imputación y, al final, una comprobación sobre la forma de construir las entradas de insulina y carbohidratos. Los indicadores clínicos sobre la señal reconstruida se presentan en la Sección~\ref{sec:validacion_clinica}, junto con los de los datos sintéticos.
  
 \subsection{Detección de fallos}
 \label{subsec:ohio_deteccion}
@@ -2005,6 +1961,52 @@ Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~
 % solo métricas de clasificación). Se redacta cuando esté claro qué pesos y datos usó esa validación.
  
 La interpretación de estas cifras, en particular la del ruido y la de las falsas alarmas por encima de 250~mg/dL, se retoma en el Capítulo~\ref{cap:discusion}.
+
+\subsection{Imputación}
+\label{subsec:ohio_imputacion}
+
+\section{Validación clínica e impacto sobre indicadores TIR/hipo/hiper}
+\label{sec:validacion_clinica}
+
+\subsection{Datos sintéticos (Sorensen)}
+\label{subsec:clinico_sorensen}
+
+Aplicamos los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios --- la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline --- para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
+
+\begin{table}[!htb]
+\centering
+\footnotesize
+\caption{Indicadores clínicos sobre la señal sintética de Sorensen, para las dos configuraciones co-óptimas. TIR/TBR/TAR en \% del tiempo; media y SD en          mg/dL; CV en \%; GMI en \% (aproximación no invasiva de HbA1c).}
+\label{tab:clinico_sorensen}
+\begin{tabular}{lccc ccc c}
+\toprule
+& \multicolumn{3}{c}{GRU $\to$ 1D-CNN} & \multicolumn{3}{c}{GRU $\to$ GRU} & \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+\textbf{Indicador} & Ref. & Sin imp. & Pipeline & Ref. & Sin imp. & Pipeline & \textbf{Objetivo} \\
+\midrule
+TIR (70--180)         & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & $\geq$70\% \\
+TBR L1 (<70)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <4\% \\
+TBR L2 (<54)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <1\% \\
+TAR L1 (180--250)     & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <25\% \\
+TAR L2 (>250)         & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <5\% \\
+Glucosa media (mg/dL) & 98,1  & 97,7  & 98,1  & 98,1  & 97,7  & 97,1  & Informativo \\
+SD (mg/dL)            & 16,0  & 16,5  & 16,1  & 16,0  & 16,5  & 16,6  & Informativo \\
+CV (\%)               & 16,3  & 16,9  & 16,4  & 16,3  & 16,9  & 17,1  & $\leq$36\% \\
+GMI (\%)              & 5,7   & 5,6   & 5,7   & 5,7   & 5,6   & 5,6   & <7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenarios para ambas configuraciones: 100\,\% de tiempo en rango, 0\,\% en cualquiera de los cuatro niveles de desviación. No es que el pipeline prevenga la hipo o la hiperglucemia --- es que, en esta simulación, la glucosa nunca sale del rango 70--180\,mg/dL, con o sin fallo inyectado. Los cinco indicadores discretos quedan saturados por el propio escenario de prueba, exactamente como se anticipó en la Sección~\ref{subsec:cobertura_clinica}, y ninguna diferencia entre GRU$\to$GRU y GRU$\to$1D-CNN puede manifestarse ahí.
+
+Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas $+0,1$ puntos porcentuales para GRU$\to$1D-CNN (16,3\,\% $\to$ 16,4\,\%) frente a $+0,8$ para GRU$\to$GRU (16,3\,\% $\to$ 17,1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5,7\,\%) mientras GRU$\to$GRU se desvía una décima (5,6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario --- que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados --- pero aquí ocurre lo opuesto para GRU$\to$GRU: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, lo que añade variabilidad en lugar de esconderla.
+
+Las diferencias son pequeñas en términos absolutos, y es justo ese el punto: sobre una simulación que apenas se mueve dentro del rango normoglucémico, ni el mejor ni el peor de los dos pipelines tiene margen para mostrar mucho más. Esa misma comparación se repite con pacientes reales, cuya glucosa sí llega a los rangos de hipo e hiperglucemia, en la subsección~\ref{sec:validacion_ohio}
+
+\subsection{Datos reales (OhioT1DM)}
+\label{subsec:clinico_ohio}
+ 
+
 % =================================================
 % CAPÍTULO 5. DISCUSIÓN
 % =================================================
