@@ -1,7 +1,8 @@
 \documentclass{report}
 
 % --- Idioma y codificación ---
-\usepackage[spanish]{babel}
+%\usepackage[spanish]{babel}
+\usepackage[spanish,es-nodecimaldot]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 
@@ -184,7 +185,7 @@ La validación experimental de este trabajo se hizo en dos etapas. En la primera
 Las cuatro arquitecturas evaluadas --CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM-- son las mismas del trabajo previo del grupo, con capas e hiperparámetros de entrenamiento idénticos. Esta tesis no explora arquitecturas nuevas: la variable de interés es el esquema de detección e imputación --fijo frente a adaptativo, unificado frente a desacoplado-- y modificar al mismo tiempo las arquitecturas impediría atribuir con claridad las diferencias de desempeño a una sola causa. Los parámetros del umbral
 adaptativo se mantuvieron iguales para las cuatro, priorizando una configuración unificada sobre un ajuste fino por arquitectura.
 
-A esta validación se suma una restricción propia del conjunto OhioT1DM: los huecos del sensor no tienen una glucosa de referencia con la cual medir el error. Para poder reportar también el error de reconstrucción en mg/dL, la evaluación sobre datos reales inyecta fallos sintéticos en ventanas de registro real y toma como referencia la lectura original del sensor. Es una aproximación. La referencia es lo que registró el propio sensor y no la glucosa en sangre, y los fallos, al ser sintéticos, no reproducen del todo los naturales.
+A esta validación se suma una restricción propia del conjunto OhioT1DM: los huecos del sensor no tienen una glucosa de referencia con la cual medir el error. Para poder reportar también el error de reconstrucción en mg/dL, la evaluación sobre datos reales inyecta fallos sintéticos en ventanas de registro real y toma como referencia la lectura original del sensor. Es una aproximación. La referencia es lo que registró el propio sensor y no la glucosa en sangre, y los fallos, al ser sintéticos, no reproducen del todo los naturales. Los fallos se colocaron una sola vez por ventana, y el ruido se evaluó con la amplitud del protocolo del artículo y con una mayor, esta última como análisis de sensibilidad.
 
 Quedan fuera del alcance de esta tesis la implementación del sistema en un dispositivo embebido y su integración en un lazo de control de insulina en tiempo real. Ambos puntos son relevantes para llevar este trabajo a unescenario clínico o comercial, pero requieren un desarrollo de ingeniería y una validación regulatoria que corresponden a una etapa posterior, no a esta tesis.
 
@@ -490,6 +491,8 @@ Antes del inicio de cada ventana se simulan además 24~h de eventos, para que lo
 \paragraph{Fallos y referencia.} Sobre cada ventana se inyecta una única señal corrupta con el protocolo de la Sección~\ref{subsec:inyeccion_fallos}: dos ráfagas de ruido blanco ($\sigma = 5.6$~mg/dL, amplitud máxima de 30~mg/dL) de 30 y 35 muestras, y dos desconexiones de 50 y 20 muestras (4.2 y 1.7~h) en las que la lectura pasa a cero. En total son 135 muestras, el 9.4\,\% de la ventana. Los rangos se fijaron a mano, alejados de los huecos reales y del arranque. Las desconexiones se colocaron sobre tramos de hiperglucemia o hipoglucemia para que los indicadores clínicos tuvieran algo que discriminar: en cada paciente, entre 36 y 38 de las 70 muestras de desconexión tienen una referencia superior a 250~mg/dL.
  
 La referencia es la lectura original del sensor antes de corromperla, y con ella se calculan el error de imputación (D1 y D3) y los indicadores clínicos. Es la medición del propio sensor, no la glucosa en sangre, y los fallos inyectados no reproducen del todo los naturales. Se trata de una aproximación que permite completar la evaluación sobre datos reales.
+
+\paragraph{Escenario de sensibilidad al ruido.} Para ver cómo cambia el comportamiento con ruido de mayor amplitud, la evaluación se repite con $\sigma$~=~15~mg/dL y una amplitud máxima de 45~mg/dL (3$\sigma$). Todo lo demás permanece igual: pacientes, rangos de las fallas, redes y entradas. El ruido es el patrón del protocolo multiplicado por 15/5.6, de modo que cada muestra perturbada tiene su equivalente en el escenario original y la comparación es pareada. El nuevo tope recorta una muestra por paciente, y las desconexiones, que no dependen de $\sigma$, son idénticas en los dos escenarios.
 
 \subsection{Inyección controlada de fallos}
 \label{subsec:inyeccion_fallos}
@@ -1262,7 +1265,7 @@ Aunque es la métrica más intuitiva, la exactitud puede resultar engañosa en p
 \mathrm{Precision} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FP}}.
 \end{equation}
 
-Una precisión baja indica un sistema propenso a generar falsos positivos, es decir, a clasificar como anómalas lecturas que en realidad eran válidas. Como se argumentó en la Sección~\ref{subsec:limitaciones_umbral_fijo}, los falsos positivos son particularmente indeseables en este contexto porque reemplazan información real del paciente por estimaciones del modelo, pudiendo enmascarar tendencias clínicamente relevantes.
+Una precisión baja indica un sistema propenso a generar falsos positivos, es decir, a clasificar como anómalas lecturas que en realidad eran válidas. Como se argumentó en la Sección~\ref{subsec:umbral_fijo}, los falsos positivos son particularmente indeseables en este contexto porque reemplazan información real del paciente por estimaciones del modelo, pudiendo enmascarar tendencias clínicamente relevantes.
 
 \paragraph{Sensibilidad (Recall).} Proporción de los fallos genuinos que el sistema identificó correctamente:
 
@@ -1906,20 +1909,20 @@ Sin embargo, reducir el MAE no es el aporte principal del desacoplamiento. Su va
 \section{Validación en datos reales OhioT1DM}
 \label{sec:validacion_ohio}
  
-Los parámetros del sistema se fijaron con datos sintéticos, y su capacidad de generalizar a registros reales es parte de lo que se evalúa aquí, no algo que se dé por supuesto. OhioT1DM sirve para ello porque reúne, en pacientes reales, las tres variables que consume el sistema --glucosa del sensor, insulina administrada y carbohidratos ingeridos-- y contiene interrupciones naturales del sensor.
+Los parámetros del sistema se fijaron con datos sintéticos; aquí se prueba si se sostienen sobre registros reales. OhioT1DM sirve para ello porque reúne, en pacientes reales, las tres variables que consume el sistema --glucosa del sensor, insulina administrada y carbohidratos ingeridos-- y contiene interrupciones naturales del sensor.
  
-Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección, la imputación y, al final, una comprobación sobre la forma de construir las entradas de insulina y carbohidratos. Los indicadores clínicos sobre la señal reconstruida se presentan en la Sección~\ref{sec:validacion_clinica}, junto con los de los datos sintéticos.
+Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección y la imputación con el ruido del protocolo del artículo ($\sigma$~=~5.6~mg/dL), las mismas medidas con ruido de mayor amplitud ($\sigma$~=~15~mg/dL) y, al final, una comprobación sobre la forma de construir las entradas de insulina y carbohidratos. Los indicadores clínicos sobre la señal reconstruida se presentan en la Sección~\ref{sec:validacion_clinica}, junto con los de los datos sintéticos.
  
 \subsection{Detección de fallos}
 \label{subsec:ohio_deteccion}
  
 El detector es la GRU en ambas configuraciones, por lo que la detección es idéntica para GRU\,$\rightarrow$\,GRU y GRU\,$\rightarrow$\,1D-CNN (Sección~\ref{subsec:independencia}). La Tabla~\ref{tab:ohio_deteccion} reporta el desempeño por paciente, promediado sobre las 5 redes, y el agregado como media y desviación estándar entre los tres pacientes. Se evalúan juntos los huecos reales y los fallos inyectados.
  
-\begin{table}[!htb]
+\begin{table}[H]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4pt}
-\caption{Detección de fallos en OhioT1DM con los modelos congelados (huecos reales y fallos inyectados). Rec.\ desc.\ y Rec.\ ruido: recall por tipo de fallo; FPR: fracción de muestras limpias señaladas como fallo; FA/día: falsas alarmas por día. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
+\caption{Detección de fallos en OhioT1DM con los modelos congelados (huecos reales y fallos inyectados, ruido con $\sigma$~=~5.6~mg/dL). Rec.\ desc.\ y Rec.\ ruido: recall por tipo de fallo; FPR: fracción de muestras limpias señaladas como fallo; FA/día: falsas alarmas por día. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
 \label{tab:ohio_deteccion}
 \begin{tabular}{lcccccccc}
 \toprule
@@ -1939,7 +1942,7 @@ Las desconexiones se detectan en su totalidad en los tres pacientes. Las ráfaga
  
 Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~\ref{tab:ohio_fpr_rangos}). Por debajo de 250~mg/dL la tasa se mantiene entre 0.0 y 6.0\,\%; por encima sube a 37.1\,\% en el 540 y a 63.3\,\% en el 559, sobre 48 y 108 muestras limpias respectivamente. El 596 no tiene muestras limpias en ese rango.
  
-\begin{table}[!htb]
+\begin{table}[H]
 \centering
 \footnotesize
 \caption{Tasa de falsas alarmas (\%) sobre muestras limpias, por rango de glucosa de la referencia. Entre paréntesis, número de muestras limpias del rango (media de las 5 redes).}
@@ -1958,19 +1961,21 @@ Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~
 % PENDIENTE: comparación de estas cifras con la Tabla 6 del artículo (Ohio, un paciente,
 % solo métricas de clasificación). Se redacta cuando esté claro qué pesos y datos usó esa validación.
  
-La interpretación de estas cifras, en particular la del ruido y la de las falsas alarmas por encima de 250~mg/dL, se retoma en el Capítulo~\ref{cap:discusion}.
+La interpretación de estas cifras, en particular la del ruido y la de las falsas alarmas por encima de 250~mg/dL, se retoma en el Capítulo~\ref{cap:discusion}. El recall de ruido con una perturbación mayor se mide en la Sección~\ref{subsec:ohio_sensibilidad}.
 
 
 \subsection{Imputación}
 \label{subsec:ohio_imputacion}
  
-El error de imputación se mide con las dos definiciones de la Sección~\ref{sec:pipeline-desacoplado}: D1, sobre todas las muestras que tienen referencia, y D3, solo sobre las muestras con fallo inyectado, separadas por tipo. La referencia es la lectura original del sensor (Sección~\ref{subsec:datos_reales}), de modo que los huecos reales quedan fuera de ambas. Como punto de comparación se incluye el último valor conocido: en D1, la persistencia, que repite la glucosa de la muestra anterior, y en D3, el LOCF, que mantiene durante la falla la última lectura válida. La Tabla~\ref{tab:ohio_imputacion} reúne los resultados por paciente.
+Cuando el detector señala una muestra, el pipeline la reemplaza con una estimación del imputador. Aquí se mide qué tan cerca queda la señal resultante de la referencia, que es la lectura original del sensor (Sección~\ref{subsec:datos_reales}); los huecos reales no tienen referencia y quedan fuera del cálculo.
  
-\begin{table}[!htb]
+Se usan las dos definiciones de error de la Sección~\ref{sec:pipeline-desacoplado}. D1 es el error de la predicción del imputador sobre todas las muestras con referencia, tengan fallo o no, y se contrasta con la persistencia, que repite la glucosa de la muestra anterior. D3 se calcula solo sobre las muestras con fallo inyectado, separadas por tipo, y evalúa la señal de salida del pipeline; su punto de comparación es el LOCF, que mantiene la última lectura válida anterior al fallo. La Tabla~\ref{tab:ohio_imputacion} reúne los resultados por paciente.
+ 
+\begin{table}[H]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{5pt}
-\caption{Error de imputación en OhioT1DM (mg/dL). D1: todas las muestras con referencia. D3: muestras con fallo inyectado, por tipo de fallo. Último valor: persistencia en D1 y LOCF en D3. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
+\caption{Error de imputación en OhioT1DM (mg/dL), con ruido de $\sigma$~=~5.6~mg/dL. D1: todas las muestras con referencia. D3: muestras con fallo inyectado, por tipo de fallo. Último valor: persistencia en D1 y LOCF en D3. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
 \label{tab:ohio_imputacion}
 \begin{tabular}{llcccc}
 \toprule
@@ -2000,7 +2005,7 @@ El error de imputación se mide con las dos definiciones de la Sección~\ref{sec
  
 En D1, GRU\,$\rightarrow$\,GRU obtiene 11.39 $\pm$ 1.43~mg/dL y GRU\,$\rightarrow$\,1D-CNN 14.81 $\pm$ 1.22~mg/dL, frente a 3.55 $\pm$ 0.84~mg/dL de la persistencia. El orden entre las dos configuraciones se repite en los tres pacientes, y en los tres ambas quedan por encima de la persistencia. En las desconexiones, D3 vale 126.90 $\pm$ 14.16 y 130.07 $\pm$ 14.94~mg/dL, contra 53.95 $\pm$ 8.76~mg/dL del LOCF. La diferencia entre configuraciones en D3 va de 2 a 9~mg/dL según el paciente y cambia de signo: es menor con GRU\,$\rightarrow$\,1D-CNN en el 540 y con GRU\,$\rightarrow$\,GRU en el 559 y el 596. Con datos de Sorensen, GRU\,$\rightarrow$\,1D-CNN reconstruía las muestras con fallo con un error de 5.4~mg/dL frente a 14.3~mg/dL de GRU\,$\rightarrow$\,GRU (Tabla~\ref{tab:44-mae-d3}); en Ohio el D3 sobre todas las fallas es de 68.0 y 69.7~mg/dL, sin ventaja para ninguna de las dos.
  
-El D3 de ruido, de 4.7~mg/dL en ambas configuraciones, es del mismo orden que la desviación media del ruido respecto a la referencia, entre 4 y 5~mg/dL. No mide una reconstrucción lograda: la mayor parte de esas muestras no se sustituye (Sección~\ref{subsec:ohio_deteccion}), y lo que sale es la propia lectura ruidosa.
+El D3 de ruido, de 4.7~mg/dL en ambas configuraciones, es del mismo orden que la desviación media del ruido respecto a la referencia, entre 4 y 5~mg/dL. La mayor parte de esas muestras no se sustituye (Sección~\ref{subsec:ohio_deteccion}), así que la salida es la propia lectura ruidosa. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
  
 La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Las curvas de color aparecen solo donde el detector señaló una muestra; en el resto la salida coincide con la lectura, y queda debajo de la referencia o, dentro de las ráfagas de ruido, de la línea gris. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella en cuanto el sensor reanuda la lectura. Los tramos cortos de color fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}). Los huecos reales, en gris, también se imputan, pero sin referencia no entran en el error.
  
@@ -2020,7 +2025,7 @@ La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. 
     \label{fig:ohio_episodios}
 \end{figure}
  
-En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala 15, 4 y 5 de las 35 muestras de la ráfaga. La curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en los tramos de ruido, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras.
+En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga. La curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en los tramos de ruido, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras.
  
 El error dentro de la desconexión crece con el tiempo transcurrido desde su inicio (Tabla~\ref{tab:ohio_error_tiempo}). En los primeros 30~min es de 40~mg/dL con GRU\,$\rightarrow$\,GRU y de 54~mg/dL con GRU\,$\rightarrow$\,1D-CNN; a la hora ya pasa de 90~mg/dL en ambas, y entre los 105 y los 150~min ronda los 195~mg/dL. El LOCF sube más despacio, de 26 a 89~mg/dL en esos mismos rangos. Los tres últimos rangos incluyen solo las desconexiones de 50 muestras, una por paciente, de modo que su nivel depende del lugar de la ventana en que cayó cada una; la comparación con el LOCF, en cambio, se hace sobre las mismas muestras.
  
@@ -2046,13 +2051,78 @@ El error dentro de la desconexión crece con el tiempo transcurrido desde su ini
 \end{tabular}
 \end{table}
 
+
+\subsection{Sensibilidad al nivel de ruido}
+\label{subsec:ohio_sensibilidad}
+ 
+Con $\sigma$~=~5.6~mg/dL el ruido inyectado se aparta de la referencia 4.65~mg/dL en promedio, menos que el umbral adaptativo, que en esas muestras promedia entre 13 y 15~mg/dL. Para ver qué cambia cuando ambas magnitudes son del mismo orden, la evaluación se repitió con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:datos_reales}): mismos pacientes, mismos tramos de falla y mismas redes, con el mismo patrón de ruido, que ahora se aparta 12.41~mg/dL en promedio. Las desconexiones no se alteran y su salida es idéntica a la de la Sección~\ref{subsec:ohio_imputacion}.
+ 
+La Tabla~\ref{tab:ohio_sens_deteccion} compara la detección. El recall de ruido pasa de 0.189~$\pm$ 0.083 a 0.614~$\pm$ 0.030; por paciente, de 0.11--0.27 a 0.58--0.64, con aumento en los tres. Las desconexiones se siguen detectando por completo. Las falsas alarmas casi no cambian (9.7 y 9.9 por día en promedio, con un FPR de 3.9 y 4.0\,\%), de modo que el aumento del F1, de 0.702 a 0.805, y del AUC, de 0.892 a 0.950, se debe al ruido que ahora sí se detecta.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{Detección de fallos en OhioT1DM con ruido de $\sigma$~=~5.6 y $\sigma$~=~15~mg/dL. Rec.\ ruido: recall sobre las muestras de ruido inyectado. F1 y AUC consideran en conjunto los huecos reales y los fallos inyectados, como en la Tabla~\ref{tab:ohio_deteccion}. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
+\label{tab:ohio_sens_deteccion}
+\begin{tabular}{lcccccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{Rec.\ ruido}} & \multicolumn{2}{c}{\textbf{F1}} & \multicolumn{2}{c}{\textbf{AUC}} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+\textbf{Paciente} & $\sigma$~=~5.6 & $\sigma$~=~15 & $\sigma$~=~5.6 & $\sigma$~=~15 & $\sigma$~=~5.6 & $\sigma$~=~15 \\
+\midrule
+540 & 0.274 & 0.640 & 0.788 & 0.850 & 0.927 & 0.964 \\
+559 & 0.185 & 0.622 & 0.615 & 0.710 & 0.861 & 0.918 \\
+596 & 0.108 & 0.582 & 0.703 & 0.854 & 0.887 & 0.968 \\
+\midrule
+Media & 0.189 & 0.614 & 0.702 & 0.805 & 0.892 & 0.950 \\
+DE & 0.083 & 0.030 & 0.087 & 0.082 & 0.033 & 0.028 \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+El D3 de ruido pasa de 4.66~$\pm$ 1.07 a 13.22~$\pm$ 7.93~mg/dL con GRU\,$\rightarrow$\,GRU y de 4.65~$\pm$ 1.06 a 12.33~$\pm$ 7.44~mg/dL con GRU\,$\rightarrow$\,1D-CNN (Tabla~\ref{tab:ohio_sens_imputacion}), mientras que la lectura sin corregir pasa de 4.65~$\pm$ 0.46 a 12.41~$\pm$ 1.23~mg/dL. En promedio entre los pacientes, la salida queda tan lejos de la referencia como la propia lectura; el LOCF, que descarta la lectura, se mantiene en 21.3~mg/dL en ambos escenarios. El signo de la diferencia cambia entre pacientes: la salida queda por debajo de la lectura sin corregir en el 559 y el 596, y por encima en el 540. El D1 sube poco, de 11.39~$\pm$ 1.43 a 11.84~$\pm$ 1.41~mg/dL con GRU\,$\rightarrow$\,GRU y de 14.81~$\pm$ 1.22 a 15.03~$\pm$ 1.18~mg/dL con GRU\,$\rightarrow$\,1D-CNN.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\caption{Error en las muestras de ruido inyectado (D3, MAE en mg/dL) con $\sigma$~=~5.6 y $\sigma$~=~15~mg/dL. Sin corregir: error de la propia lectura ruidosa. Último valor: LOCF, que no depende de $\sigma$. Cada paciente es la media de las 5 redes; Media y DE se calculan entre los tres pacientes.}
+\label{tab:ohio_sens_imputacion}
+\begin{tabular}{lccccccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{Sin corregir}} & \multicolumn{2}{c}{\textbf{GRU\,$\rightarrow$\,GRU}} & \multicolumn{2}{c}{\textbf{GRU\,$\rightarrow$\,1D-CNN}} & \textbf{Último} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+\textbf{Paciente} & $\sigma$~=~5.6 & $\sigma$~=~15 & $\sigma$~=~5.6 & $\sigma$~=~15 & $\sigma$~=~5.6 & $\sigma$~=~15 & \textbf{valor} \\
+\midrule
+540 & 4.95 & 13.20 & 5.63 & 22.38 & 5.63 & 20.91 & 19.23 \\
+559 & 4.12 & 11.00 & 3.52 & 8.43 & 3.52 & 7.58 & 30.03 \\
+596 & 4.87 & 13.03 & 4.85 & 8.85 & 4.82 & 8.51 & 14.54 \\
+\midrule
+Media $\pm$ DE & 4.65~$\pm$ 0.46 & 12.41~$\pm$ 1.23 & 4.66~$\pm$ 1.07 & 13.22~$\pm$ 7.93 & 4.65~$\pm$ 1.06 & 12.33~$\pm$ 7.44 & 21.27~$\pm$ 7.94 \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+Esa diferencia del 540 viene sobre todo de su primera ráfaga (Figura~\ref{fig:ohio_sens_ruido}, paneles a y d), durante la cual la referencia baja de 141 a 47~mg/dL. Entre las muestras 271 y 278 las cinco redes señalan cada una de esas muestras y la salida se mantiene entre 138 y 142~mg/dL, mientras la referencia cae de 109 a 52~mg/dL. De las 5 muestras de la ráfaga con referencia por debajo de 70~mg/dL, la salida queda por debajo de ese nivel en una, contra cuatro con $\sigma$~=~5.6. Es un solo paciente y una sola colocación de fallos, así que no es posible saber si ocurriría en otras posiciones.
+ 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_ohio_sensibilidad_ruido.eps}
+    \caption{Primera ráfaga de ruido inyectada (30 muestras, 2.5~h) en los pacientes 540 (columna izquierda), 559 (central) y 596 (derecha). Arriba, (a)--(c): $\sigma$~=~5.6~mg/dL. Abajo, (d)--(f): $\sigma$~=~15~mg/dL, con el mismo patrón de ruido a mayor escala. Las curvas y las franjas son las de la Figura~\ref{fig:ohio_ventanas}; el tiempo se mide en horas desde el inicio de la ventana.}
+    \label{fig:ohio_sens_ruido}
+\end{figure}
+ 
+En las muestras señaladas, la mediana del coeficiente $\alpha$ del suavizado (Ecuación~\ref{eq:alpha_adaptativo}) baja de 0.02--0.04 con $\sigma$~=~5.6 a 0.003--0.006 con $\sigma$~=~15. En ambos escenarios la salida cambia menos de 0.5~mg/dL respecto de la muestra anterior en la mayoría de esas muestras (70 a 96\,\% con $\sigma$~=~5.6 y 80 a 93\,\% con $\sigma$~=~15), lo que produce los tramos planos de la figura. Con $\sigma$~=~15 el error de detección supera además $\tau_{\mathrm{D}} = 60$~mg/dL en 14, 8 y 5 de las 325 evaluaciones de ruido (65 muestras por 5 redes) de los pacientes 540, 559 y 596, con un máximo de 76.5~mg/dL contra 30.8~mg/dL con $\sigma$~=~5.6. Esas muestras se clasifican como desconexión y la salida toma la estimación del imputador sin suavizar. Los indicadores clínicos de la señal reconstruida prácticamente no cambian con $\sigma$~=~15 (Sección~\ref{subsec:clinico_ohio}).
+
+
 \section{Validación clínica e impacto sobre indicadores TIR/hipo/hiper}
 \label{sec:validacion_clinica}
 
 \subsection{Datos sintéticos (Sorensen)}
 \label{subsec:clinico_sorensen}
 
-Aplicamos los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios --- la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline --- para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
+Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios --- la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline --- para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
 
 \begin{table}[!htb]
 \centering
@@ -2065,28 +2135,31 @@ Aplicamos los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
 \textbf{Indicador} & Ref. & Sin imp. & Pipeline & Ref. & Sin imp. & Pipeline & \textbf{Objetivo} \\
 \midrule
-TIR (70--180)         & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & 100,0 & $\geq$70\% \\
-TBR L1 (<70)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <4\% \\
-TBR L2 (<54)          & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <1\% \\
-TAR L1 (180--250)     & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <25\% \\
-TAR L2 (>250)         & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & 0,0   & <5\% \\
-Glucosa media (mg/dL) & 98,1  & 97,7  & 98,1  & 98,1  & 97,7  & 97,1  & Informativo \\
-SD (mg/dL)            & 16,0  & 16,5  & 16,1  & 16,0  & 16,5  & 16,6  & Informativo \\
-CV (\%)               & 16,3  & 16,9  & 16,4  & 16,3  & 16,9  & 17,1  & $\leq$36\% \\
-GMI (\%)              & 5,7   & 5,6   & 5,7   & 5,7   & 5,6   & 5,6   & <7\% \\
+TIR (70--180)         & 100.0 & 100.0 & 100.0 & 100.0 & 100.0 & 100.0 & $\geq$70\% \\
+TBR L1 (<70)          & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <4\% \\
+TBR L2 (<54)          & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <1\% \\
+TAR L1 (180--250)     & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <25\% \\
+TAR L2 (>250)         & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <5\% \\
+Glucosa media (mg/dL) & 98.1  & 97.7  & 98.1  & 98.1  & 97.7  & 97.1  & Informativo \\
+SD (mg/dL)            & 16.0  & 16.5  & 16.1  & 16.0  & 16.5  & 16.6  & Informativo \\
+CV (\%)               & 16.3  & 16.9  & 16.4  & 16.3  & 16.9  & 17.1  & $\leq$36\% \\
+GMI (\%)              & 5.7   & 5.6   & 5.7   & 5.7   & 5.6   & 5.6   & <7\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenarios para ambas configuraciones: 100\,\% de tiempo en rango, 0\,\% en cualquiera de los cuatro niveles de desviación. No es que el pipeline prevenga la hipo o la hiperglucemia --- es que, en esta simulación, la glucosa nunca sale del rango 70--180\,mg/dL, con o sin fallo inyectado. Los cinco indicadores discretos quedan saturados por el propio escenario de prueba, exactamente como se anticipó en la Sección~\ref{subsec:cobertura_clinica}, y ninguna diferencia entre GRU$\to$GRU y GRU$\to$1D-CNN puede manifestarse ahí.
+TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenarios para ambas configuraciones: 100\,\% de tiempo en rango y 0\,\% en cada uno de los cuatro niveles de desviación. La glucosa simulada nunca sale del rango 70--180\,mg/dL, con o sin fallo inyectado, de modo que el pipeline no tiene hipo ni hiperglucemia que prevenir y los cinco indicadores quedan saturados, como se anticipó en la Sección~\ref{subsec:cobertura_clinica}. Ahí no puede aparecer diferencia alguna entre GRU$\to$GRU y GRU$\to$1D-CNN.
 
-Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas $+0,1$ puntos porcentuales para GRU$\to$1D-CNN (16,3\,\% $\to$ 16,4\,\%) frente a $+0,8$ para GRU$\to$GRU (16,3\,\% $\to$ 17,1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5,7\,\%) mientras GRU$\to$GRU se desvía una décima (5,6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario --- que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados --- pero aquí ocurre lo opuesto para GRU$\to$GRU: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, lo que añade variabilidad en lugar de esconderla.
+Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas +0.1 puntos porcentuales para GRU$\to$1D-CNN (16.3\,\% $\to$ 16.4\,\%) frente a +0.8 para GRU$\to$GRU (16.3\,\% $\to$ 17.1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5.7\,\%) mientras GRU$\to$GRU se desvía una décima (5.6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario, que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados, pero con GRU$\to$GRU ocurre lo opuesto: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, y eso añade variabilidad en lugar de esconderla.
 
-Las diferencias son pequeñas en términos absolutos, y es justo ese el punto: sobre una simulación que apenas se mueve dentro del rango normoglucémico, ni el mejor ni el peor de los dos pipelines tiene margen para mostrar mucho más. Esa misma comparación se repite con pacientes reales, cuya glucosa sí llega a los rangos de hipo e hiperglucemia, en la subsección~\ref{sec:validacion_ohio}
+Las diferencias son pequeñas en términos absolutos. Sobre una simulación que apenas se mueve dentro del rango normoglucémico, ninguno de los dos pipelines tiene margen para mostrar más. La misma comparación se repite con pacientes reales, cuya glucosa sí llega a los rangos de hipo e hiperglucemia, en la subsección~\ref{subsec:clinico_ohio}.
 
 \subsection{Datos reales (OhioT1DM)}
 \label{subsec:clinico_ohio}
+
+ % --- (aquí va el texto principal de 4.6.2, aún pendiente) ---
  
+Con el ruido de mayor amplitud (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores de la Tabla~\ref{tab:clinico_ohio} casi no cambian. En el agregado de los tres pacientes, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01 puntos. Los escenarios de referencia, sin imputar y LOCF no dependen de $\sigma$. El único cambio apreciable es el del 540: un TBR$_1$ 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor, en el paciente de la ráfaga con descenso hacia hipoglucemia. La concordancia de categoría dentro de las ráfagas de ruido baja de 99.4~$\pm$ 1.1 a 97.1~$\pm$ 5.0\,\% con GRU\,$\rightarrow$\,GRU y a 97.9~$\pm$ 3.6\,\% con GRU\,$\rightarrow$\,1D-CNN, otra vez por el 540; en el 559 y el 596 se mantiene en 100\,\%.
 
 % =================================================
 % CAPÍTULO 5. DISCUSIÓN
