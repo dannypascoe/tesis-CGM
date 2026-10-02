@@ -155,7 +155,7 @@ La factibilidad del proyecto, por su parte, no depende únicamente de argumentos
 
 La hipótesis de este trabajo es que sustituir el umbral fijo de detección por uno que se adapte al contexto glucémico, y evaluar de manera independiente las combinaciones posibles entre detector e imputador, produce un sistema de detección e imputación en línea con mejor desempeño técnico que el esquema unificado y de umbral fijo del trabajo previo: menos falsos positivos en la detección de fallos y una reconstrucción de la señal más precisa.
 
-Se espera además que el sistema conserve su desempeño al pasar de datos simulados a reales. Aplicado sin reajuste a registros de OhioT1DM, en tres pacientes y no solo en el único que consideró el trabajo previo, debería detectar las desconexiones del sensor y reconstruir la señal de modo que los indicadores clínicos de control glucémico --tiempo en rango, variabilidad y riesgo de hipo o hiperglucemia-- queden cerca de los de la señal de referencia.
+Se espera además que el sistema conserve su desempeño al pasar de datos simulados a reales. Aplicado sin reajuste a registros de OhioT1DM, debería detectar las desconexiones del sensor. La señal que reconstruye debería, además, dar indicadores clínicos de control glucémico cercanos a los de la señal de referencia.
 
 \section{Objetivos}
 \label{sec:objetivos}
@@ -494,6 +494,8 @@ La referencia es la lectura original del sensor antes de corromperla, y con ella
 
 \paragraph{Escenario de sensibilidad al ruido.} Para ver cómo cambia el comportamiento con ruido de mayor amplitud, la evaluación se repite con $\sigma$~=~15~mg/dL y una amplitud máxima de 45~mg/dL (3$\sigma$). Todo lo demás permanece igual: pacientes, rangos de las fallas, redes y entradas. El ruido es el patrón del protocolo multiplicado por 15/5.6, de modo que cada muestra perturbada tiene su equivalente en el escenario original y la comparación es pareada. El nuevo tope recorta una muestra por paciente, y las desconexiones, que no dependen de $\sigma$, son idénticas en los dos escenarios.
 
+\paragraph{Comparadores de referencia.} Para leer el error de imputación se usan dos estimaciones que no requieren entrenamiento y que se calculan a partir de la referencia. La persistencia repite la glucosa de la muestra anterior y es el comparador del D1. El LOCF (\textit{last observation carried forward}) sostiene durante toda la falla la última lectura válida anterior a su inicio, y es el del D3. Ninguno forma parte del sistema propuesto. Al LOCF se le da la posición exacta de cada falla, que el pipeline tiene que obtener con el detector. En el ruido, donde la lectura aún conserva información, el comparador más directo es la propia lectura sin corregir.
+
 \subsection{Inyección controlada de fallos}
 \label{subsec:inyeccion_fallos}
 
@@ -808,7 +810,7 @@ Las redes neuronales son sensibles a la inicialización aleatoria de sus pesos y
 
 Para mitigar esta limitación, cada arquitectura se entrena cinco veces de manera independiente utilizando un conjunto fijo de semillas aleatorias: $\{42, 100, 2024, 7, 1337\}$. Antes de cada corrida se reinicializa el generador de números aleatorios con la semilla correspondiente, lo cual garantiza dos propiedades simultáneas: la \textbf{variabilidad} entre corridas, ya que cada inicialización produce pesos iniciales distintos y un \textit{shuffling} distinto de los datos; y la \textbf{reproducibilidad}, ya que la fijación explícita de las semillas permite reproducir cualquier resultado individual de manera exacta.
 
-Los resultados se reportan a lo largo de toda la tesis como la media $\pm$ una desviación estándar sobre las cinco corridas, lo que permite distinguir entre el desempeño promedio del modelo y su variabilidad inherente. Una baja varianza entre corridas es indicio de un entrenamiento estable y de una arquitectura robusta; una varianza elevada, en cambio, sugiere que la arquitectura es sensible a la inicialización o a perturbaciones del conjunto de datos.
+Los resultados se reportan a lo largo de toda la tesis como la media $\pm$ una desviación estándar (DE) sobre las cinco corridas, lo que permite distinguir entre el desempeño promedio del modelo y su variabilidad inherente. Una baja varianza entre corridas es indicio de un entrenamiento estable y de una arquitectura robusta; una varianza elevada, en cambio, sugiere que la arquitectura es sensible a la inicialización o a perturbaciones del conjunto de datos.
 
 \subsection{Resultados de la validación interna}
 \label{subsec:resultados_validacion_interna}
@@ -821,7 +823,7 @@ La Tabla~\ref{tab:val_mse} reporta el MSE mínimo de validación obtenido por ca
     \label{tab:val_mse}
     \begin{tabular}{lcc}
         \toprule
-        \textbf{Arquitectura} & \textbf{MSE de validación (media)} & \textbf{Desviación estándar} \\
+        \textbf{Arquitectura} & \textbf{MSE de validación (media)} & \textbf{DE} \\
         \midrule
         CNN--LSTM           & 0.0143 & 0.0008 \\
         GRU                 & 0.0132 & 0.0004 \\
@@ -979,7 +981,7 @@ Estas limitaciones convergen en una misma observación de fondo: la \textit{exac
 \subsection{Umbral adaptativo basado en glucosa y tasa de cambio (B+ROC)}
 \label{subsec:umbral_adaptativo}
 
-Las limitaciones del umbral fijo identificadas en la Sección~\ref{subsec:umbral_fijo} comparten una observación de fondo: la \textit{exactitud esperable} de las lecturas CGM no es una constante, sino una función conjunta del nivel de glucosa instantáneo y de su tasa de cambio. La formulación propuesta en esta tesis incorpora explícitamente ambas dependencias, dando lugar a un umbral $\tau(k)$ que se actualiza en cada paso de la operación en línea según las condiciones glucémicas presentes en ese instante. Esta formulación se denomina \textbf{B+ROC} por sus dos términos constitutivos: una componente proporcional al \textbf{B}aseline glucémico y una componente proporcional a la \textbf{R}ate \textbf{o}f \textbf{C}hange de la glucosa.
+A partir de las observaciones identificadas en la Sección~\ref{subsec:umbral_fijo}, esta tesis propone redefinir el umbral como una cantidad $\tau(k)$ que se actualiza en cada paso de la operación en línea según el nivel de glucosa y la tasa de cambio presentes en ese instante. La formulación se denomina \textbf{B+ROC} por sus dos términos constitutivos: una componente proporcional al \textbf{B}aseline glucémico y otra proporcional a la \textbf{R}ate \textbf{o}f \textbf{C}hange de la glucosa.
 
 \subsubsection{Formulación matemática}
 \label{subsec:formulacion_adaptativa}
@@ -1384,7 +1386,7 @@ Las métricas clínicas se calculan en tres configuraciones complementarias sobr
     \item La \textbf{señal reconstruida} $g_{\mathrm{final}}(k)$: la salida del sistema tras detección e imputación.
 \end{enumerate}
 
-Un sistema efectivo debe producir indicadores sobre $g_{\mathrm{final}}(k)$ significativamente más cercanos a los de $g(k)$ que los obtenidos sobre $g_{\mathrm{no\_imp}}(k)$, y simultáneamente recuperar la mayor cantidad posible de información que de otro modo se perdería al descartar los fallos.
+Un sistema efectivo debe producir indicadores sobre $g_{\mathrm{final}}(k)$ más cercanos a los de $g(k)$ que los obtenidos sobre $g_{\mathrm{no\_imp}}(k)$, y simultáneamente recuperar la mayor cantidad posible de información que de otro modo se perdería al descartar los fallos.
 
 Tres contrastes resultan particularmente informativos: $\Delta\mathrm{TIR}$, $\Delta\mathrm{CV}$ y $\Delta\mathrm{GMI}$, definidos como la diferencia entre cada configuración y la referencia. $\Delta\mathrm{TIR}$ cuantifica la distorsión del indicador primario; $\Delta\mathrm{CV}$ es relevante porque las desconexiones imputadas pueden introducir suavizado que reduzca artificialmente la variabilidad reportada; y $\Delta\mathrm{GMI}$ verifica la consistencia de los indicadores de exposición global. Un sistema clínicamente útil minimiza los tres contrastes en la configuración con pipeline.
 
@@ -1441,7 +1443,7 @@ estándar como indicadores agregados de estabilidad.
 \toprule
 \textbf{Arquitectura} &
 \textbf{S1} & \textbf{S2} & \textbf{S3} & \textbf{S4} & \textbf{S5} &
-\textbf{Media} & \textbf{Std} \\
+\textbf{Media} & \textbf{DE} \\
 \midrule
 CNN-LSTM          & 0.0149 & 0.0137 & 0.0145 & 0.0156 & 0.0145
                   & 0.0146 & 0.0007 \\
@@ -1505,7 +1507,7 @@ como media $\pm$ desviación estándar sobre cinco semillas independientes.
 \begin{table}[htbp]
 \centering
 \caption{Métricas de detección de fallos — pipeline unificado con umbral fijo
-         ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ std sobre
+         ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ DE sobre
          cinco semillas.}
 \label{tab:bloque_a_deteccion}
 \begin{tabular}{lrrrrr}
@@ -1530,7 +1532,7 @@ Transformer-LSTM & $0.971 \pm 0.008$ & $0.891 \pm 0.089$ & $0.789 \pm 0.013$
 \begin{table}[htbp]
 \centering
 \caption{Métricas de imputación — pipeline unificado con umbral fijo
-         ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ std sobre
+         ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ DE sobre
          cinco semillas. MAE y RMSE en mg/dL; MARD en \%; $R^2$ adimensional.}
 \label{tab:bloque_a_imputacion}
 \begin{tabular}{lrrrr}
@@ -1629,7 +1631,7 @@ facilitar la comparación visual.
 \centering
 \caption{Métricas de detección de fallos — pipeline unificado con umbral
          adaptativo ($\beta=0.10$, $\tau_{\min}=7.0$\,mg/dL, $\gamma=0.05$).
-         Valores expresados como media $\pm$ std sobre cinco semillas.}
+         Valores expresados como media $\pm$ DE sobre cinco semillas.}
 \label{tab:bloque_b_deteccion}
 \begin{tabular}{lrrrrr}
 \toprule
@@ -1653,7 +1655,7 @@ Transformer-LSTM & $0.980 \pm 0.002$ & $1.000 \pm 0.000$ & $0.778 \pm 0.017$
 \begin{table}[htbp]
 \centering
 \caption{Métricas de imputación — pipeline unificado con umbral adaptativo.
-         Valores expresados como media $\pm$ std sobre cinco semillas.
+         Valores expresados como media $\pm$ DE sobre cinco semillas.
          MAE y RMSE en mg/dL; MARD en \%; $R^2$ adimensional.}
 \label{tab:bloque_b_imputacion}
 \begin{tabular}{lrrrr}
@@ -1723,7 +1725,7 @@ El resultado central de esta sección es la confirmación empírica \emph{exacta
 
 \begin{table}[htbp]
 \centering
-\caption{$F_1$ de detección para las 16 combinaciones. Las cuatro columnas de cada fila son idénticas: el desempeño de detección depende únicamente del detector. Valores como media $\pm$ desviación estándar.}
+\caption{$F_1$ de detección para las 16 combinaciones. Las cuatro columnas de cada fila son idénticas: el desempeño de detección depende únicamente del detector. Valores como media $\pm$ DE.}
 \label{tab:44-f1}
 \small
 \begin{tabular}{lcccc}
@@ -1742,7 +1744,7 @@ Transformer-LSTM  & $0.875 \pm 0.011$ & $0.875 \pm 0.011$ & $0.875 \pm 0.011$ & 
 
 \begin{table}[htbp]
 \centering
-\caption{MAE de imputación (D1, mg/dL) para las 16 combinaciones. Las cuatro filas son idénticas: el error de imputación depende únicamente del imputador. Valores como media $\pm$ desviación estándar.}
+\caption{MAE de imputación (D1, mg/dL) para las 16 combinaciones. Las cuatro filas son idénticas: el error de imputación depende únicamente del imputador. Valores como media $\pm$ DE.}
 \label{tab:44-mae-d1}
 \small
 \begin{tabular}{lcccc}
@@ -1778,7 +1780,7 @@ El contraste entre MAE y RMSE es informativo. GRU minimiza el MAE pero no el RMS
 
 \begin{table}[htbp]
 \centering
-\caption{RMSE de imputación (D1, mg/dL) para las 16 combinaciones. Filas idénticas: depende únicamente del imputador. Valores como media $\pm$ desviación estándar.}
+\caption{RMSE de imputación (D1, mg/dL) para las 16 combinaciones. Filas idénticas: depende únicamente del imputador. Valores como media $\pm$ DE.}
 \label{tab:44-rmse-d1}
 \small
 \begin{tabular}{lcccc}
@@ -1836,11 +1838,11 @@ Transformer-LSTM  & $1.40$ & $1.47$ & $0.70$ & $1.49$ \\
 \subsection{Reconstrucción en fallos reales (métrica diagnóstica)}
 \label{subsec:d3}
 
-La métrica~D3 (Tabla~\ref{tab:44-mae-d3}) evalúa el error de la señal de salida únicamente en las muestras con fallo real, aislando la calidad de reconstrucción del promediado con las muestras limpias. El resultado refuerza el hallazgo anterior: 1D-CNN reconstruye con un error de $5.2$–$5.7$~mg/dL, frente a los $13$–$14.5$~mg/dL del resto de imputadores. Esta ventaja de aproximadamente un factor de tres es coherente con su $R^2$ superior y confirma que 1D-CNN es el imputador que mejor recupera la señal justo donde la imputación es necesaria. Se reitera que~D3 se emplea como métrica diagnóstica y no como cifra comparable con el trabajo de referencia.
+La métrica~D3 (Tabla~\ref{tab:44-mae-d3}) evalúa el error de la señal de salida únicamente en las muestras con fallo real, aislando la calidad de reconstrucción del promediado con las muestras limpias. El resultado refuerza el hallazgo anterior: 1D-CNN reconstruye con un error de $5.2$–$5.7$~mg/dL, frente a los $13$–$14.5$~mg/dL del resto de imputadores. Esta ventaja de aproximadamente un factor de tres es coherente con su $R^2$ superior y confirma que 1D-CNN es el imputador que mejor recupera la señal justo donde la imputación es necesaria. Como referencia, repetir la última lectura válida durante cada fallo (Sección~\ref{subsec:datos_reales}) da 13.8~mg/dL sobre esas mismas muestras, cerca de los demás imputadores, de modo que 1D-CNN lo reduce a menos de la mitad. Se reitera que~D3 se emplea como métrica diagnóstica y no como cifra comparable con el trabajo de referencia.
 
 \begin{table}[htbp]
 \centering
-\caption{MAE de reconstrucción (D3, mg/dL) sobre las muestras con fallo real ($\texttt{true\_f}=1$). Métrica diagnóstica. Valores como media $\pm$ desviación estándar.}
+\caption{MAE de reconstrucción (D3, mg/dL) sobre las muestras con fallo real ($\texttt{true\_f}=1$). Métrica diagnóstica. Valores como media $\pm$ DE.}
 \label{tab:44-mae-d3}
 \small
 \begin{tabular}{lcccc}
@@ -2127,7 +2129,7 @@ Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinica
 \begin{table}[!htb]
 \centering
 \footnotesize
-\caption{Indicadores clínicos sobre la señal sintética de Sorensen, para las dos configuraciones co-óptimas. TIR/TBR/TAR en \% del tiempo; media y SD en          mg/dL; CV en \%; GMI en \% (aproximación no invasiva de HbA1c).}
+\caption{Indicadores clínicos sobre la señal sintética de Sorensen, para las dos configuraciones co-óptimas. TIR/TBR/TAR en \% del tiempo; media y $\sigma_g$ (desviación estándar de la glucosa) en mg/dL; CV en \%; GMI en \% (aproximación no invasiva de HbA1c).}
 \label{tab:clinico_sorensen}
 \begin{tabular}{lccc ccc c}
 \toprule
@@ -2141,7 +2143,7 @@ TBR L2 (<54)          & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <1\% \\
 TAR L1 (180--250)     & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <25\% \\
 TAR L2 (>250)         & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <5\% \\
 Glucosa media (mg/dL) & 98.1  & 97.7  & 98.1  & 98.1  & 97.7  & 97.1  & Informativo \\
-SD (mg/dL)            & 16.0  & 16.5  & 16.1  & 16.0  & 16.5  & 16.6  & Informativo \\
+$\sigma_g$ (mg/dL)       & 16.0  & 16.5  & 16.1  & 16.0  & 16.5  & 16.6  & Informativo \\
 CV (\%)               & 16.3  & 16.9  & 16.4  & 16.3  & 16.9  & 17.1  & $\leq$36\% \\
 GMI (\%)              & 5.7   & 5.6   & 5.7   & 5.7   & 5.6   & 5.6   & <7\% \\
 \bottomrule
@@ -2156,6 +2158,47 @@ Las diferencias son pequeñas en términos absolutos. Sobre una simulación que 
 
 \subsection{Datos reales (OhioT1DM)}
 \label{subsec:clinico_ohio}
+
+Con pacientes reales los indicadores dejan de estar saturados. Se aplican los de la Sección~\ref{subsec:clinico_sorensen} a los tres pacientes y a las dos configuraciones co-óptimas, sobre las mismas muestras en todos los escenarios: las que tienen referencia a partir del arranque, de modo que los huecos reales quedan fuera. Cada paciente resume sus 5 redes con la media, y la Tabla~\ref{tab:clinico_ohio} da la media y la desviación estándar entre los tres pacientes.
+ 
+\begin{table}[!htb]
+\centering
+\footnotesize
+\caption{Indicadores clínicos en OhioT1DM con el ruido del protocolo del artículo ($\sigma$~=~5.6~mg/dL), para las dos configuraciones co-óptimas. TIR/TBR/TAR en \% del tiempo; media y $\sigma_g$ en mg/dL; CV en \%; GMI en \%. Media $\pm$ DE entre los tres pacientes; en el pipeline, cada paciente es la media de las 5 redes.}
+\label{tab:clinico_ohio}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Indicador} & Ref. & Sin imp. & GRU\,$\rightarrow$\,GRU & GRU\,$\rightarrow$\,1D-CNN & \textbf{Objetivo} \\
+\midrule
+TIR (70--180)         & 71.5 $\pm$ 8.9    & 74.0 $\pm$ 10.1   & 75.7 $\pm$ 9.2    & 76.4 $\pm$ 8.9    & $\geq$70\% \\
+TBR L1 (<70)          & 5.9 $\pm$ 5.9     & 5.5 $\pm$ 5.6     & 5.6 $\pm$ 5.6     & 5.1 $\pm$ 5.2     & <4\% \\
+TBR L2 (<54)          & 1.3 $\pm$ 2.2     & 0.8 $\pm$ 1.4     & 0.7 $\pm$ 1.2     & 0.7 $\pm$ 1.2     & <1\% \\
+TAR L1 (180--250)     & 16.3 $\pm$ 7.2    & 16.5 $\pm$ 7.9    & 15.5 $\pm$ 7.4    & 15.3 $\pm$ 7.4    & <25\% \\
+TAR L2 (>250)         & 6.3 $\pm$ 3.7     & 4.1 $\pm$ 4.1     & 3.2 $\pm$ 3.3     & 3.2 $\pm$ 3.3     & <5\% \\
+Glucosa media (mg/dL) & 144.6 $\pm$ 14.2  & 141.2 $\pm$ 16.1  & 138.1 $\pm$ 14.2  & 138.4 $\pm$ 14.1  & Informativo \\
+$\sigma_g$ (mg/dL)    & 55.3 $\pm$ 8.7    & 50.0 $\pm$ 10.6   & 48.4 $\pm$ 10.1   & 47.9 $\pm$ 9.6    & Informativo \\
+CV (\%)               & 38.5 $\pm$ 7.6    & 35.6 $\pm$ 7.7    & 35.2 $\pm$ 7.8    & 34.8 $\pm$ 7.3    & $\leq$36\% \\
+GMI (\%)              & 6.77 $\pm$ 0.34   & 6.69 $\pm$ 0.38   & 6.61 $\pm$ 0.34   & 6.62 $\pm$ 0.34   & <7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+ 
+El TIR de la referencia promedia 71.5~$\pm$ 8.9\,\%, con 62.3\,\% en el 559, y el tiempo sobre 250~mg/dL promedia 6.3~$\pm$ 3.7\,\%. El 540 pasa 3.8\,\% del tiempo por debajo de 54~mg/dL y es el único de los tres con TBR nivel 2. En promedio, la referencia cumple los objetivos de TIR, TAR nivel 1 y GMI, y no los de TBR (en sus dos niveles), TAR nivel 2 ni CV.
+ 
+Con el pipeline, el TIR sube a 75.7\,\% con GRU\,$\rightarrow$\,GRU y a 76.4\,\% con GRU\,$\rightarrow$\,1D-CNN, 4.2 y 4.9 puntos por encima de la referencia; en cada paciente la diferencia va de 4.0 a 5.1 puntos. El tiempo sobre 250~mg/dL baja de 6.3\,\% a 3.2\,\%, el CV de 38.5\,\% a 35.2 y 34.8\,\%, y el GMI de 6.77\,\% a 6.61 y 6.62\,\%. Con ello el pipeline cumple tres objetivos que la referencia no cumple: TBR nivel 2, TAR nivel 2 y CV. Descartar las muestras con fallo mueve los mismos indicadores en la misma dirección, pero menos: $+$2.5 puntos de TIR, $-$2.9 de CV y $-$0.08 de GMI. En el agregado, los tres contrastes de la Sección~\ref{subsec:metricas_clinicas} quedan más lejos de la referencia con el pipeline que con la señal sin imputar.
+ 
+La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En el 596, tanto el pipeline como la señal sin imputar eliminan el 2.6\,\% de tiempo sobre 250~mg/dL que tiene la referencia. En el 559, el TAR nivel 2 baja de 10.1\,\% a 6.5\,\% y el GMI de 7.11\,\% a 6.96 y 6.98\,\%, por debajo del 7\,\% que la referencia supera. En el 540, el TBR nivel 2 baja de 3.8\,\% a 2.1\,\%. El cambio se concentra en las desconexiones (Sección~\ref{subsec:ohio_imputacion}), y su discusión se retoma en el Capítulo~\ref{cap:discusion}.
+ 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_ohio_clinico_rangos.eps}
+    \caption{Tiempo en cada rango de glucosa para la referencia, la señal sin imputar y la salida de las dos configuraciones, en los pacientes (a) 540, (b) 559 y (c) 596 de OhioT1DM, con el ruido del protocolo del artículo. El número dentro de cada barra es el TIR (\%). Las barras separan el TBR nivel 1 (54--69~mg/dL) del nivel 2 ($<$54~mg/dL); el TBR L1 de la Tabla~\ref{tab:clinico_ohio} ($<$70~mg/dL) incluye a los dos.}
+    \label{fig:ohio_clinico_rangos}
+\end{figure}
+ 
+El LOCF (Sección~\ref{subsec:datos_reales}) queda a 0.5 puntos de TIR de la referencia, con un CV 3.3 puntos menor y un GMI 0.05 menor. Frente al pipeline, la diferencia está sobre todo en el TIR y el GMI.
+ 
+Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores casi no cambian. En el agregado, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01; la referencia y la señal sin imputar no dependen de $\sigma$. El único cambio apreciable es el del 540, con un TBR nivel 1 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor.
 
  % --- (aquí va el texto principal de 4.6.2, aún pendiente) ---
  
