@@ -3,6 +3,7 @@
 % --- Idioma y codificación ---
 %\usepackage[spanish]{babel}
 \usepackage[spanish,es-nodecimaldot]{babel}
+\unaccentedoperators 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 
@@ -990,10 +991,10 @@ El umbral adaptativo B+ROC se define como:
 
 \begin{equation}
 \label{eq:umbral_adaptativo}
-\tau(k) = \max\!\Big(\, \tau_{\min},\ \ \beta \cdot G_{\mathrm{ref}}(k) \cdot \big(1 + \gamma\,|\mathrm{ROC}(k)|\big) \,\Big),
+\tau(k) = \max\!\big(\, \tau_{\min},\ \beta \cdot G_{\mathrm{ref}}(k) \,\big) \cdot \big(1 + \gamma\,|\mathrm{ROC}(k)|\big),
 \end{equation}
 
-donde $G_{\mathrm{ref}}(k)$ representa el nivel de glucosa de referencia en el instante $k$, $\mathrm{ROC}(k)$ es la tasa de cambio reciente de la glucosa, y $\tau_{\min}$, $\beta$, $\gamma$ son tres parámetros ajustables que se discuten en las Subsecciones~\ref{subsec:interpretacion_parametros} y~\ref{subsec:seleccion_parametros}.
+donde $G_{\mathrm{ref}}(k)$ representa el nivel de glucosa de referencia en el instante $k$, $\mathrm{ROC}(k)$ es la tasa de cambio reciente de la glucosa, y $\tau_{\min}$, $\beta$, $\gamma$ son tres parámetros ajustables que se discuten en las Subsecciones~\ref{subsec:interpretacion_parametros} y~\ref{subsec:seleccion_parametros}. El máximo fija un piso para el componente proporcional y el factor de tasa de cambio lo amplía después, de modo que $\tau(k) \geq \tau_{\min}$ en todo instante.
 
 La elección de la referencia $G_{\mathrm{ref}}(k)$ requiere una consideración cuidadosa. Utilizar directamente la lectura instantánea del sensor $g(k)$ resultaría problemático: si esa lectura está corrupta por un fallo --precisamente el escenario que el umbral pretende detectar-- entonces el propio umbral se contaminaría con el fallo, generando un comportamiento circular indeseable. Por ello, en este trabajo se utiliza la predicción del modelo neuronal como referencia:
 
@@ -1004,30 +1005,31 @@ G_{\mathrm{ref}}(k) = \hat{g}(k),
 
 con la motivación de que $\hat{g}(k)$ representa la mejor estimación disponible del nivel fisiológico de glucosa en el instante $k$, independiente del estado de salud del sensor.
 
-La tasa de cambio se calcula a partir del historial reciente de glucosa contenido en la ventana deslizante (Sección~\ref{subsec:ventana_deslizante}). Empleando una primera diferencia normalizada por el periodo de muestreo $T_s = 5$~min, se obtiene:
+La tasa de cambio se calcula a partir del historial reciente de glucosa contenido en la ventana deslizante (Sección~\ref{subsec:ventana_deslizante}). Empleando una primera diferencia normalizada por el número de intervalos entre muestras, se obtiene:
 
 \begin{equation}
 \label{eq:roc}
-\mathrm{ROC}(k) = \frac{g(k-1) - g(k-d)}{(d - 1)\, T_s} \quad \big[\text{mg/dL/min}\big],
+%\mathrm{ROC}(k) = \frac{g(k-1) - g(k-d)}{(d - 1)\, T_s} \quad \big[\text{mg/dL/min}\big],
+\mathrm{ROC}(k) = \frac{g(k-1) - g(k-d)}{d - 1} \quad \big[\text{mg/dL por muestra}\big],
 \end{equation}
 
-donde $d = 6$ es el horizonte de la ventana deslizante. Esta formulación produce una estimación robusta de la tendencia reciente al promediar implícitamente sobre los últimos 25~min, atenuando el ruido de alta frecuencia que podría afectar a una primera diferencia entre dos muestras consecutivas. Se utiliza el valor absoluto $|\mathrm{ROC}(k)|$ en la Ecuación~\eqref{eq:umbral_adaptativo} dado que tanto las excursiones ascendentes (posprandiales) como las descendentes (acción de la insulina) generan errores transitorios de magnitud comparable en las predicciones de la red, independientemente del signo de la pendiente glucémica.
+donde $d = 6$ es el horizonte de la ventana deslizante. Con $T_s = 5$~min, 1~mg/dL/min equivale a 5~mg/dL por muestra. Esta formulación produce una estimación robusta de la tendencia reciente al promediar implícitamente sobre los últimos 25~min, atenuando el ruido de alta frecuencia que podría afectar a una primera diferencia entre dos muestras consecutivas. Se utiliza el valor absoluto $|\mathrm{ROC}(k)|$ en la Ecuación~\eqref{eq:umbral_adaptativo} dado que tanto las excursiones ascendentes (posprandiales) como las descendentes (acción de la insulina) generan errores transitorios de magnitud comparable en las predicciones de la red, independientemente del signo de la pendiente glucémica.
 
 \subsubsection{Interpretación física de los parámetros}
 \label{subsec:interpretacion_parametros}
 
 Cada uno de los tres parámetros de la Ecuación~\eqref{eq:umbral_adaptativo} cumple un rol específico, y su interpretación física justifica tanto su presencia en la fórmula como los rangos de valores en los que resulta razonable buscar su configuración óptima.
 
-\paragraph{Parámetro $\beta$: proporcionalidad con el nivel de glucosa.} El término $\beta \cdot G_{\mathrm{ref}}(k)$ confiere al umbral su carácter heteroscedástico, en directa correspondencia con la lógica de la norma ISO 15197:2013~\cite{iso15197_2013}. Bajo esta norma, la tolerancia clínica de los sistemas CGM es absoluta ($\pm 15$~mg/dL) en el rango hipoglucémico y relativa ($\pm 15\%$) en los rangos normo- e hiperglucémico. La elección de $\beta = 0.10$ aproxima esta proporcionalidad a la mitad del límite normativo, dando como resultado un umbral más estricto que el que la norma considera aceptable. Adicionalmente, este valor está alineado con valores típicos del MARD (\textit{Mean Absolute Relative Difference}) reportados para sistemas CGM modernos, los cuales se sitúan habitualmente entre el 8\% y el 12\%~\cite{huang2022accuracy}.
+\paragraph{Parámetro $\beta$: proporcionalidad con el nivel de glucosa.} El término $\beta \cdot G_{\mathrm{ref}}(k)$ confiere al umbral su carácter heteroscedástico, en directa correspondencia con la lógica de la norma ISO 15197:2013~\cite{iso15197_2013}. Bajo esta norma, la tolerancia clínica de los sistemas CGM es absoluta ($\pm 15$~mg/dL) en el rango hipoglucémico y relativa ($\pm 15\%$) en los rangos normo- e hiperglucémico. Con $\beta = 0.10$ la tolerancia proporcional queda en el 10\,\%, por debajo del 15\,\% de la norma, y el umbral resulta más estricto que el que ella considera aceptable. Adicionalmente, este valor está alineado con valores típicos del MARD (\textit{Mean Absolute Relative Difference}) reportados para sistemas CGM modernos, los cuales se sitúan habitualmente entre el 8\% y el 12\%~\cite{huang2022accuracy}.
 
 \paragraph{Parámetro $\tau_{\min}$: piso de seguridad en hipoglucemia severa.} Cuando el nivel de glucosa es muy bajo, la pura proporcionalidad $\beta \cdot G_{\mathrm{ref}}(k)$ produciría umbrales excesivamente pequeños que resultarían vulnerables al ruido inherente del sensor. Por ejemplo, a 50~mg/dL --un nivel de hipoglucemia clínicamente significativo-- el término proporcional sería de apenas 5~mg/dL, comparable a las fluctuaciones de ruido típicas. Para evitar este escenario, se introduce un piso $\tau_{\min} = 7$~mg/dL que garantiza que el umbral nunca descienda por debajo de un valor compatible con el nivel de ruido esperable, preservando la robustez de la detección incluso en condiciones de hipoglucemia severa.
 
-\paragraph{Parámetro $\gamma$: peso del término de dinámica.} El factor $(1 + \gamma\,|\mathrm{ROC}(k)|)$ relaja el umbral durante periodos de cambio rápido de la glucosa. Esta relajación responde a una observación empírica: durante excursiones rápidas (posprandiales o por administración de bolo de insulina), las predicciones de la red exhiben un mayor error transitorio porque deben seguir trayectorias que cambian rápidamente. Bajo un umbral que no contemple este efecto, esos errores transitorios serían clasificados como fallos, produciendo falsos positivos sistemáticos que reemplazarían lecturas válidas por predicciones del modelo. La elección de $\gamma = 0.05$ permite que, durante una excursión típica de 2~mg/dL/min, el umbral se relaje aproximadamente un 10\,\%, una corrección moderada pero suficiente para absorber los errores transitorios de predicción sin comprometer la sensibilidad ante fallos genuinos. Valores mayores de $\gamma$ relajarían el umbral en exceso durante las excursiones, abriendo la puerta a falsos negativos; el valor seleccionado representa el punto de equilibrio identificado empíricamente.
+\paragraph{Parámetro $\gamma$: peso del término de dinámica.} El factor $(1 + \gamma\,|\mathrm{ROC}(k)|)$ relaja el umbral durante periodos de cambio rápido de la glucosa. En las excursiones rápidas (posprandiales o por bolo de insulina) las predicciones de la red tienen un error transitorio mayor, porque deben seguir trayectorias que cambian deprisa; bajo un umbral que no lo contemple, ese error se clasificaría como fallo y se sustituirían lecturas válidas por predicciones del modelo. Con $\gamma = 0.05$, valor elegido de forma empírica (Sección~\ref{subsec:seleccion_parametros}), una tasa de cambio de 2~mg/dL por muestra relaja el umbral aproximadamente un 10\,\%. Valores mayores lo relajarían en exceso y dejarían pasar más fallos.
 
 \subsubsection{Comportamiento del umbral a través del rango glucémico}
 \label{subsec:comportamiento_umbral}
 
-Con los parámetros $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL, el umbral adaptativo presenta un comportamiento intuitivo a lo largo del rango glucémico clínicamente relevante. La Tabla~\ref{tab:umbral_rangos} resume los valores que toma el umbral en distintos escenarios representativos, mostrando tanto el comportamiento en glucosa estable ($\mathrm{ROC} = 0$) como durante una excursión típica ($|\mathrm{ROC}| = 2$~mg/dL/min).
+Con los parámetros $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL, el umbral adaptativo presenta un comportamiento intuitivo a lo largo del rango glucémico clínicamente relevante. La Tabla~\ref{tab:umbral_rangos} resume los valores que toma el umbral en distintos escenarios representativos, mostrando tanto el comportamiento en glucosa estable ($\mathrm{ROC} = 0$) como con una tasa de cambio de 2~mg/dL por muestra.
 
 \begin{table}[h]
     \centering
@@ -1047,14 +1049,14 @@ Con los parámetros $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL, e
     \end{tabular}
 \end{table}
 
-Tres observaciones se desprenden de esta tabla. Primero, en condiciones de glucosa estable y normoglucemia (100~mg/dL), el umbral adaptativo produce exactamente el mismo valor que el umbral fijo del paper original (10~mg/dL), lo cual permite afirmar que la formulación adaptativa no altera arbitrariamente el punto de operación clínico tradicional, sino que lo extiende a otros rangos glucémicos. Segundo, en hipoglucemia severa el piso $\tau_{\min}$ se activa, garantizando una sensibilidad mínima incluso cuando la pura proporcionalidad sería insuficiente. Tercero, el factor de relajación dinámica es deliberadamente modesto --del orden del 10\,\% para una excursión típica-- de modo que la tasa de cambio modula el umbral sin llegar a dominarlo, descartando cualquier riesgo de que las excursiones rápidas conviertan al detector en insensible a fallos genuinos.
+Tres observaciones se desprenden de esta tabla. Primero, en condiciones de glucosa estable y normoglucemia (100~mg/dL), el umbral adaptativo produce exactamente el mismo valor que el umbral fijo del paper original (10~mg/dL), lo cual permite afirmar que la formulación adaptativa no altera arbitrariamente el punto de operación clínico tradicional, sino que lo extiende a otros rangos glucémicos. Segundo, en hipoglucemia severa el piso $\tau_{\min}$ se activa, garantizando una sensibilidad mínima incluso cuando la pura proporcionalidad sería insuficiente. Tercero, «el factor de relajación crece de forma gradual (10\,\% con 2~mg/dL por muestra y 50\,\% con 10), de modo que la tasa de cambio modula el umbral sin llegar a dominarlo, lo que limita el riesgo de que las excursiones rápidas conviertan al detector en insensible a fallos genuinos.
 
 \subsubsection{Selección empírica de los parámetros}
 \label{subsec:seleccion_parametros}
 
-Los valores $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL se obtuvieron mediante una exploración sistemática del espacio de parámetros sobre el conjunto de prueba sintético independiente (Sección~\ref{subsec:inyeccion_fallos}). El criterio de selección consideró simultáneamente cuatro objetivos: maximizar la precisión (minimizar falsos positivos), preservar la capacidad de detección (alto recall), mantener la coherencia con los referentes normativos clínicos, y garantizar estabilidad en el comportamiento del umbral a lo largo del rango glucémico.
+Los parámetros $\beta = 0.10$ y $\tau_{\min} = 7$~mg/dL se mantuvieron fijos, con la motivación clínica de la Sección~\ref{subsec:interpretacion_parametros}, y la selección empírica se hizo sobre $\gamma$. Se probaron $\gamma = 0$, $0.05$, $0.10$ y $0.15$ con la CNN-LSTM sobre el conjunto de prueba sintético (Sección~\ref{subsec:inyeccion_fallos}), y se conservó el valor con el mayor recall entre los que mantenían una precisión de $1.000$: $\gamma = 0.05$.
 
-Un hallazgo particularmente relevante de esta exploración es que el componente de tasa de cambio resulta indispensable para alcanzar los objetivos de diseño. Al fijar $\gamma = 0$ --eliminando así el efecto de la tasa de cambio y dejando un umbral que es función únicamente del nivel de glucosa-- los falsos positivos reaparecen durante periodos de excursiones glucémicas rápidas, particularmente en las transiciones posprandiales. Este comportamiento constituye una validación empírica del rol específico del término de dinámica: la heteroscedasticidad respecto al nivel de glucosa, por sí sola, es necesaria pero no suficiente para una detección robusta en operación en línea. Estos resultados se discuten cuantitativamente en el Capítulo~\ref{cap:resultados}.
+Con $\gamma = 0$ el umbral queda en $\max(\tau_{\min},\, \beta\,G_{\mathrm{ref}}(k))$ y los falsos positivos reaparecen durante las excursiones rápidas, como anticipa la interpretación de $\gamma$ (Sección~\ref{subsec:interpretacion_parametros}). Con $\gamma = 0.15$ la precisión se mantiene en $1.000$ y el recall baja. Son resultados exploratorios, de una sola arquitectura. Como $\gamma$ se eligió sobre el mismo conjunto sintético con el que se evalúa el Capítulo~\ref{cap:resultados}, la prueba fuera de muestra de estos parámetros es la validación en OhioT1DM (Sección~\ref{sec:validacion_ohio}), donde se aplicaron sin modificación.
 
 \subsubsection{Integración con el algoritmo de detección}
 \label{subsec:integracion_algoritmo}
@@ -1067,15 +1069,15 @@ El Algoritmo~\ref{alg:umbral_adaptativo} detalla las operaciones específicas as
 \caption{Cómputo del umbral adaptativo B+ROC en línea.}
 \label{alg:umbral_adaptativo}
 \begin{algorithmic}[1]
-\Require Predicción actual $\hat{g}(k)$, ventana de glucosa $\{g(k-d), \ldots, g(k-1)\}$, parámetros $\beta$, $\gamma$, $\tau_{\min}$, periodo de muestreo $T_s$
+\Require Predicción actual $\hat{g}(k)$, ventana de glucosa $\{g(k-d), \ldots, g(k-1)\}$, parámetros $\beta$, $\gamma$, $\tau_{\min}$
 \Ensure Umbral adaptativo $\tau(k)$
 \If{$k \leq d$}
     \State $G_{\mathrm{ref}}(k) \gets \mathrm{mean}\big(g(1), \ldots, g(d)\big)$ \Comment{Inicialización con promedio}
     \State $\tau(k) \gets \max\!\big(\tau_{\min},\ \beta \cdot G_{\mathrm{ref}}(k)\big)$ \Comment{Sin término ROC en la inicialización}
 \Else
     \State $G_{\mathrm{ref}}(k) \gets \hat{g}(k)$ \Comment{Referencia: predicción del modelo}
-    \State $\mathrm{ROC}(k) \gets \big(g(k-1) - g(k-d)\big) / \big((d-1) \cdot T_s\big)$ \Comment{Tasa de cambio reciente}
-    \State $\tau(k) \gets \max\!\big(\tau_{\min},\ \beta \cdot G_{\mathrm{ref}}(k) \cdot (1 + \gamma\,|\mathrm{ROC}(k)|)\big)$
+    \State $\mathrm{ROC}(k) \gets \big(g(k-1) - g(k-d)\big) / (d-1)$ \Comment{Tasa de cambio reciente}
+    \State $\tau(k) \gets \max\!\big(\tau_{\min},\ \beta \cdot G_{\mathrm{ref}}(k)\big) \cdot \big(1 + \gamma\,|\mathrm{ROC}(k)|\big)$
 \EndIf
 \State \textbf{return} $\tau(k)$
 \end{algorithmic}
@@ -1413,6 +1415,8 @@ Los Autoencoders representan una de las ramas más fascinantes del aprendizaje n
 \chapter{Resultados}
 \label{cap:resultados}
 
+% Este capítulo va de la configuración más simple a la evaluación más cercana al uso real. Las Secciones~\ref{sec:resultados_entrenamiento} a~\ref{sec:pipeline-desacoplado} trabajan con la señal sintética de Sorensen: del entrenamiento de las cuatro arquitecturas pasan al pipeline unificado, con umbral fijo y con umbral adaptativo, y de ahí a las 16 combinaciones del pipeline desacoplado. La Sección~\ref{sec:validacion_ohio} aplica las dos configuraciones co-óptimas, sin reajuste, a tres pacientes de OhioT1DM. La Sección~\ref{sec:validacion_clinica} mide con los indicadores de control glucémico qué cambia en la señal reconstruida, primero en Sorensen y después en Ohio.
+
 % ============================================================
 %  SECCIÓN 4.1 — Resultados de entrenamiento  (versión corregida)
 % ============================================================
@@ -1420,9 +1424,7 @@ Los Autoencoders representan una de las ramas más fascinantes del aprendizaje n
 \section{Resultados de entrenamiento}
 \label{sec:resultados_entrenamiento}
 
-Las cuatro arquitecturas evaluadas en esta tesis —CNN-LSTM, GRU, 1D-CNN y
-Transformer-LSTM— fueron entrenadas siguiendo la misma configuración reportada
-en el trabajo publicado \cite{sanchez2025imputation}: optimizador Adam con tasa de
+Las cuatro arquitecturas evaluadas en esta tesis (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) fueron entrenadas siguiendo la misma configuración reportada en el trabajo publicado \cite{sanchez2025imputation}: optimizador Adam con tasa de
 aprendizaje $\eta = 0.001$, regularización L2 con $\lambda = 10^{-3}$, mini-lotes
 de 32 muestras, máximo de 300 épocas y parada anticipada (\textit{early stopping})
 con paciencia de 30 épocas sin mejora en la pérdida de validación. Para evaluar la
@@ -1457,32 +1459,9 @@ Transformer-LSTM  & 0.0149 & 0.0155 & 0.0158 & 0.0171 & 0.0161
 \end{tabular}
 \end{table}
 
-Los resultados muestran que el entrenamiento fue estable y reproducible en las
-cuatro arquitecturas. La GRU obtuvo el menor MSE de validación promedio
-($0.0136 \pm 0.0002$\,mg$^2$/dL$^2$) y la dispersión más baja entre semillas,
-lo que refleja una convergencia robusta propia de su arquitectura recurrente
-compacta. CNN-LSTM y Transformer-LSTM presentan variabilidades comparables
-($\sigma = 0.0007$ y $0.0008$, respectivamente), mientras que 1D-CNN registra
-el MSE promedio más alto ($0.0248$), coherente con su naturaleza puramente
-convolucional y su menor capacidad para capturar dependencias temporales de
-largo alcance. Estos resultados son consistentes con los reportados en
-\cite{sanchez2025imputation}, donde se observó el mismo ordenamiento relativo
-entre arquitecturas.\footnote{Diferencias menores al 4\% respecto a los valores
-de la Tabla~2 del trabajo publicado son atribuibles a variaciones estocásticas
-propias de sesiones de entrenamiento independientes, y no alteran el ranking
-relativo de las arquitecturas ni las conclusiones del análisis.}
+El entrenamiento fue estable en las cuatro arquitecturas. La GRU obtuvo el menor MSE de validación promedio ($0.0136 \pm 0.0002$) y la menor dispersión entre semillas; CNN-LSTM y Transformer-LSTM tienen dispersiones parecidas ($0.0007$ y $0.0008$) y 1D-CNN el MSE promedio más alto ($0.0248$). El orden entre arquitecturas es el que observó el trabajo previo~\cite{sanchez2025imputation}.\footnote{Diferencias menores al 4\% respecto a los valores de la Tabla~2 del trabajo publicado son atribuibles a variaciones estocásticas propias de sesiones de entrenamiento independientes, y no alteran el ranking relativo de las arquitecturas ni las conclusiones del análisis.}
 
-La ausencia de sobreajuste puede inferirse a partir de tres evidencias
-complementarias. En primer lugar, el mecanismo de \textit{early stopping}
-garantiza por diseño que el entrenamiento se interrumpe antes de que la pérdida
-de validación comience a diverger de la pérdida de entrenamiento. En segundo
-lugar, la baja varianza entre semillas indica que los modelos no memorizaron
-patrones específicos de una inicialización particular; un modelo sobreajustado
-típicamente exhibe mayor sensibilidad a las condiciones iniciales. En tercer
-lugar, el desempeño reportado en las secciones siguientes se obtuvo sobre un
-conjunto de prueba completamente independiente, nunca expuesto durante el
-entrenamiento ni la selección de hiperparámetros, lo que constituye la evidencia
-más directa de capacidad de generalización.
+Nada apunta a un sobreajuste importante. El mecanismo de \textit{early stopping} limita el entrenamiento al tramo en que la pérdida de validación aún mejora, y la baja dispersión entre semillas indica que ningún modelo quedó ajustado a una inicialización particular. La prueba más directa de generalización llega en las secciones siguientes, donde el desempeño se mide sobre un conjunto de prueba que no intervino ni en el entrenamiento ni en la selección de hiperparámetros.
 
 % ============================================================
 %  SECCIÓN 4.2 — Pipeline unificado con umbral fijo
@@ -1506,9 +1485,7 @@ como media $\pm$ desviación estándar sobre cinco semillas independientes.
 % ------ Tabla detección ------
 \begin{table}[htbp]
 \centering
-\caption{Métricas de detección de fallos — pipeline unificado con umbral fijo
-         ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ DE sobre
-         cinco semillas.}
+\caption{Métricas de detección de fallos: pipeline unificado con umbral fijo          ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ DE sobre cinco semillas.}
 \label{tab:bloque_a_deteccion}
 \begin{tabular}{lrrrrr}
 \toprule
@@ -1531,9 +1508,7 @@ Transformer-LSTM & $0.971 \pm 0.008$ & $0.891 \pm 0.089$ & $0.789 \pm 0.013$
 % ------ Tabla imputación ------
 \begin{table}[htbp]
 \centering
-\caption{Métricas de imputación — pipeline unificado con umbral fijo
-         ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ DE sobre
-         cinco semillas. MAE y RMSE en mg/dL; MARD en \%; $R^2$ adimensional.}
+\caption{Métricas de imputación: pipeline unificado con umbral fijo ($\tau = 10$\,mg/dL). Valores expresados como media $\pm$ DE sobre cinco semillas. MAE y RMSE en mg/dL; MARD en \%; $R^2$ adimensional.}
 \label{tab:bloque_a_imputacion}
 \begin{tabular}{lrrrr}
 \toprule
@@ -1554,38 +1529,21 @@ Transformer-LSTM & $3.42 \pm 1.44$ & $7.01 \pm 5.68$ & $1.57 \pm 1.32$
 
 \subsection*{Desempeño en detección}
 
-En la tarea de detección, CNN-LSTM y GRU se posicionan como las arquitecturas más sólidas, con F1-scores de $0.863$ y $0.860$, respectivamente, y valores de AUC superiores a $0.967$. Ambas combinan una precisión elevada con un recall razonable, lo que se traduce en pocos falsos positivos y una detección efectiva de la mayoría de los fallos inyectados. GRU obtiene el AUC más alto ($0.972 \pm 0.005$), con la menor dispersión entre semillas, lo que refleja su convergencia estable observada también en el entrenamiento.
+En la tarea de detección, CNN-LSTM y GRU obtienen los mejores resultados, con F1 de $0.863$ y $0.860$, respectivamente, y AUC superiores a $0.967$. Ambas combinan una precisión elevada con un recall razonable, lo que se traduce en pocos falsos positivos y una detección efectiva de la mayoría de los fallos inyectados. GRU obtiene el AUC más alto ($0.972 \pm 0.005$), con la menor dispersión entre semillas, lo que refleja su convergencia estable observada también en el entrenamiento.
 
-La arquitectura 1D-CNN muestra el comportamiento más conservador: su recall de $0.660$ indica que aproximadamente un tercio de los fallos no son detectados, y su AUC de $0.882$ es notablemente inferior al resto. Este comportamiento es consistente con la naturaleza puramente convolucional del modelo, que extrae características locales de la señal pero carece de mecanismos explícitos para modelar dependencias temporales de largo alcance, necesarias para anticipar desviaciones sostenidas respecto al valor fisiológico esperado.
+La arquitectura 1D-CNN muestra el comportamiento más conservador: su recall de $0.660$ indica que aproximadamente un tercio de los fallos no son detectados, y su AUC de $0.882$ es inferior al resto. Este comportamiento es consistente con la naturaleza puramente convolucional del modelo, que extrae características locales de la señal pero carece de mecanismos explícitos para modelar dependencias temporales de largo alcance, necesarias para anticipar desviaciones sostenidas respecto al valor fisiológico esperado.
 
-Transformer-LSTM presenta la mayor dispersión en precisión
-($0.891 \pm 0.089$), evidencia de que algunos modelos —dentro de sus cinco
-semillas— incurren en un número considerablemente mayor de falsas alarmas
-que otros. Este comportamiento de alta varianza entre semillas es consistente con la inestabilidad observada en sus métricas de imputación.
+Transformer-LSTM presenta la mayor dispersión en precisión ($0.891 \pm 0.089$), evidencia de que algunos modelos, dentro de sus cinco semillas, incurren en un número considerablemente mayor de falsas alarmas que otros. Este comportamiento de alta varianza entre semillas es consistente con la inestabilidad observada en sus métricas de imputación.
 
 \subsection*{Desempeño en imputación}
 
-Los resultados de imputación revelan un patrón inverso al observado en
-detección: 1D-CNN, la arquitectura con menor capacidad detectora, obtiene las mejores métricas de reconstrucción de señal, con RMSE de $3.82 \pm 0.44$\,mg/dL, MARD de $0.71\%$ y $R^2 = 0.976 \pm 0.003$. Este último valor, prácticamente sin varianza entre semillas, indica que la arquitectura convolucional genera predicciones muy consistentes y precisas en términos de forma y magnitud de la señal imputada. La razón de esta aparente paradoja radica en la naturaleza de ambas tareas: la detección requiere sensibilidad ante cambios abruptos en el error de predicción, mientras que la imputación premia la estabilidad y suavidad de las predicciones; el sesgo conservador de 1D-CNN favorece la segunda tarea en detrimento de la primera.
+Los resultados de imputación revelan un patrón inverso al observado en detección: 1D-CNN, la arquitectura con menor capacidad detectora, obtiene las mejores métricas de reconstrucción de señal, con RMSE de $3.82 \pm 0.44$\,mg/dL, MARD de $0.71\%$ y $R^2 = 0.976 \pm 0.003$. Este último valor, prácticamente sin varianza entre semillas, indica que la arquitectura convolucional genera predicciones muy consistentes y precisas en términos de forma y magnitud de la señal imputada. Una explicación plausible está en la naturaleza de ambas tareas: la detección requiere sensibilidad ante cambios abruptos en el error de predicción, mientras que la imputación premia la estabilidad y suavidad de las predicciones; el sesgo conservador de 1D-CNN favorecería la segunda tarea en detrimento de la primera.
 
-GRU y CNN-LSTM obtienen MAE comparables ($2.92$ y $2.99$\,mg/dL,
-respectivamente) con dispersiones moderadas, lo que confirma su estabilidad
-tanto en entrenamiento como en evaluación. Transformer-LSTM, en contraste,
-exhibe la mayor variabilidad en todas las métricas de imputación
-($\text{RMSE} = 7.01 \pm 5.68$\,mg/dL, $R^2 = 0.741 \pm 0.472$), lo que
-sugiere que al menos uno de sus cinco modelos tuvo dificultades para
-generalizar correctamente sobre el conjunto de prueba, fenómeno ya anticipado por la alta desviación estándar en sus valores de MSE de validación (Tabla~\ref{tab:training_mse}).
+GRU y CNN-LSTM obtienen MAE comparables ($2.92$ y $2.99$\,mg/dL, respectivamente) con dispersiones moderadas, lo que confirma su estabilidad tanto en entrenamiento como en evaluación. Transformer-LSTM, en contraste, exhibe la mayor variabilidad en todas las métricas de imputación ($\text{RMSE} = 7.01 \pm 5.68$\,mg/dL, $R^2 = 0.741 \pm 0.472$), lo que sugiere que al menos uno de sus cinco modelos tuvo dificultades para generalizar correctamente sobre el conjunto de prueba, algo que el MSE de validación (Tabla~\ref{tab:training_mse}) no anticipaba, pues su dispersión ahí es comparable a la de CNN-LSTM.
 
 \subsection*{Consistencia con el trabajo publicado}
 
-Los resultados obtenidos son consistentes con los reportados en
-\cite{sanchez2025imputation} en cuanto al ordenamiento relativo de las
-arquitecturas: CNN-LSTM y GRU lideran en detección, mientras que 1D-CNN
-destaca en imputación, y Transformer-LSTM muestra la mayor variabilidad.
-Diferencias numéricas menores son atribuibles a variaciones estocásticas entre sesiones de entrenamiento independientes, según lo discutido en la
-Sección~\ref{sec:resultados_entrenamiento}. Estos resultados sirven como
-línea base para evaluar el impacto del umbral adaptativo en la sección
-siguiente.
+El ordenamiento coincide con el del trabajo publicado~\cite{sanchez2025imputation}: CNN-LSTM y GRU lideran en detección, 1D-CNN en imputación y Transformer-LSTM es la menos estable. Estos valores son la línea base contra la que se mide el umbral adaptativo en la sección siguiente.
 
 % ============================================================
 %  SECCIÓN 4.3 — Pipeline unificado con umbral adaptativo
@@ -1594,18 +1552,7 @@ siguiente.
 \section{Pipeline unificado con umbral adaptativo}
 \label{sec:pipeline_unificado_adaptativo}
 
-Esta sección presenta la primera contribución original de la tesis: la
-sustitución del umbral fijo $\tau = 10$\,mg/dL por el umbral adaptativo
-definido en la Sección~\ref{subsec:umbral_adaptativo} como:
-\begin{equation}
-    \tau(k) = \tau_{\min} + \beta \cdot \hat{g}(k)
-              \cdot \bigl(1 + \gamma \cdot |\text{ROC}(k)|\bigr)
-    \label{eq:umbral_adaptativo_resultados}
-\end{equation}
-con parámetros optimizados $\beta = 0.10$, $\tau_{\min} = 7.0$\,mg/dL y
-$\gamma = 0.05$. El resto de la configuración —arquitecturas, datos de prueba
-y protocolo de evaluación— es idéntico al de la sección anterior, lo que
-permite una comparación directa y aislada del efecto del umbral.
+Esta sección presenta la primera contribución original de la tesis: la sustitución del umbral fijo $\tau = 10$\,mg/dL por el umbral adaptativo definido en la Ecuación~\eqref{eq:umbral_adaptativo}, con $G_{\mathrm{ref}}(k) = \hat{g}(k)$ (Ecuación~\eqref{eq:g_ref}) y con los parámetros $\beta = 0.10$, $\tau_{\min} = 7.0$\,mg/dL y $\gamma = 0.05$.
 
 % La Figura~\ref{fig:comparativa_fijo_adaptativo} ilustra de forma comparativa 
 % el efecto del umbral adaptativo sobre las nueve métricas evaluadas para las 
@@ -1629,9 +1576,9 @@ facilitar la comparación visual.
 % ------ Tabla detección ------
 \begin{table}[htbp]
 \centering
-\caption{Métricas de detección de fallos — pipeline unificado con umbral
-         adaptativo ($\beta=0.10$, $\tau_{\min}=7.0$\,mg/dL, $\gamma=0.05$).
-         Valores expresados como media $\pm$ DE sobre cinco semillas.}
+\caption{Métricas de detección de fallos: pipeline unificado con umbral adaptativo.
+%($\beta=0.10$, $\tau_{\min}=7.0$\,mg/dL, $\gamma=0.05$). 
+Valores expresados como media $\pm$ DE sobre cinco semillas.}
 \label{tab:bloque_b_deteccion}
 \begin{tabular}{lrrrrr}
 \toprule
@@ -1654,9 +1601,7 @@ Transformer-LSTM & $0.980 \pm 0.002$ & $1.000 \pm 0.000$ & $0.778 \pm 0.017$
 % ------ Tabla imputación ------
 \begin{table}[htbp]
 \centering
-\caption{Métricas de imputación — pipeline unificado con umbral adaptativo.
-         Valores expresados como media $\pm$ DE sobre cinco semillas.
-         MAE y RMSE en mg/dL; MARD en \%; $R^2$ adimensional.}
+\caption{Métricas de imputación: pipeline unificado con umbral adaptativo. Valores expresados como media $\pm$ DE sobre cinco semillas. MAE y RMSE en mg/dL; MARD en \%; $R^2$ adimensional.}
 \label{tab:bloque_b_imputacion}
 \begin{tabular}{lrrrr}
 \toprule
@@ -1677,7 +1622,7 @@ Transformer-LSTM & $3.42 \pm 1.44$ & $7.01 \pm 5.68$ & $1.50 \pm 1.27$
 
 \subsection*{Efecto sobre la detección}
 
-El resultado más destacado del umbral adaptativo es la eliminación completa de los falsos positivos: las cuatro arquitecturas alcanzan una precisión de $1.000 \pm 0.000$ de forma consistente en todas las semillas evaluadas. Este comportamiento se debe a que el umbral $\tau(k)$ se escala con el nivel de glucosa predicho $\hat{g}(k)$ y con la tasa de cambio $|\text{ROC}(k)|$, adaptándose al contexto glucémico instantáneo. En regiones de glucosa elevada o con dinámica rápida —donde el error de predicción es intrínsecamente mayor aún en ausencia de fallo— el umbral se amplía proporcionalmente, evitando clasificar variaciones fisiológicas normales como anomalías del sensor.
+El resultado más destacado del umbral adaptativo es la eliminación completa de los falsos positivos: las cuatro arquitecturas alcanzan una precisión de $1.000 \pm 0.000$ de forma consistente en todas las semillas evaluadas. Este comportamiento se debe a que el umbral $\tau(k)$ se escala con el nivel de glucosa predicho $\hat{g}(k)$ y con la tasa de cambio $|\text{ROC}(k)|$, adaptándose al contexto glucémico instantáneo. En regiones de glucosa elevada o con dinámica rápida, donde el error de predicción es intrínsecamente mayor aún en ausencia de fallo, el umbral se amplía proporcionalmente, evitando clasificar variaciones fisiológicas normales como anomalías del sensor.
 
 Este efecto contrasta con el umbral fijo, cuyo valor constante de $10$\,mg/dL resulta demasiado restrictivo en determinados contextos glucémicos, generando falsos positivos que se traducen en precisiones inferiores a la unidad (entre $0.891$ y $0.971$ según la arquitectura, véase Tabla~\ref{tab:bloque_a_deteccion}).
 
@@ -1685,21 +1630,21 @@ Como contrapartida esperada, el recall disminuye levemente en todas las arquitec
 
 El AUC permanece idéntico al del umbral fijo en todas las arquitecturas ($0.967$, $0.972$, $0.882$ y $0.960$, respectivamente). Este resultado es metodológicamente esperable: el AUC se calcula a partir del error de predicción continuo como puntuación discriminante, y es invariante respecto al umbral de binarización empleado. Su invarianza confirma que el umbral adaptativo no modifica la capacidad discriminativa intrínseca de los modelos, sino únicamente el punto de operación sobre la curva ROC.
 
-La reducción de la dispersión en precisión del Transformer-LSTM ($\sigma: 0.089 \to 0.000$) merece una mención particular: bajo el umbral fijo, distintas semillas de este modelo producían tasas de falsos positivos considerablemente distintas entre sí, lo que se reflejaba en una alta varianza en precisión. El umbral adaptativo elimina esta variabilidad, homogeneizando el comportamiento de detección independientemente de la inicialización.
+En el Transformer-LSTM, la desviación de la precisión pasa de $0.089$ a $0.000$. Con umbral fijo, algunas semillas generaban muchas más falsas alarmas que otras; con el adaptativo, todas alcanzan una precisión de $1.000$.
 
 \subsection*{Efecto sobre la imputación}
 
-Las métricas MAE y RMSE son idénticas a las del umbral fijo en todas las arquitecturas. Este resultado es consecuencia directa del diseño del pipeline unificado: el umbral únicamente determina si una muestra se clasifica como fallo o no; el valor imputado —cuando se activa la imputación— es siempre la predicción $\hat{g}(k)$ del modelo, independientemente de qué umbral la activó. Por tanto, cualquier muestra que era correctamente imputada bajo el umbral fijo lo sigue siendo bajo el umbral adaptativo, y viceversa.
+Las métricas MAE y RMSE son idénticas a las del umbral fijo en todas las arquitecturas. Este resultado es consecuencia directa del diseño del pipeline unificado: el umbral únicamente determina si una muestra se clasifica como fallo o no; el valor imputado, cuando se activa la imputación, es siempre la predicción $\hat{g}(k)$ del modelo, independientemente de qué umbral la activó. Por tanto, cualquier muestra que era correctamente imputada bajo el umbral fijo lo sigue siendo bajo el umbral adaptativo, y viceversa.
 
 El MARD, sin embargo, mejora de forma consistente en todas las arquitecturas (GRU: $-0.111$\,pp; Transformer-LSTM: $-0.074$\,pp; CNN-LSTM: $-0.026$\,pp; 1D-CNN: $-0.020$\,pp). Esta mejora, aparentemente contradictoria con la invarianza de MAE y RMSE, se explica por la naturaleza relativa del MARD: al eliminarse los falsos positivos, el sistema ya no imputa muestras que en realidad son correctas, evitando así introducir sustituciones en regiones de glucosa baja donde el error relativo es mayor. El efecto es sutil pero sistemático y consistente en las cuatro arquitecturas.
 
 \subsection*{Rol del componente de tasa de cambio}
 
-El parámetro $\gamma = 0.05$, que pondera la contribución de $|\text{ROC}(k)|$ al umbral, fue validado comparando su comportamiento frente a $\gamma = 0.00$ (umbral sin componente de tasa de cambio). En el  caso $\gamma = 0.00$, el umbral se reduce a $\tau(k) = \tau_{\min} + \beta \cdot \hat{g}(k)$, proporcional únicamente al nivel de glucosa, lo que reintroduce falsos positivos en transiciones glucémicas rápidas —como las ocurridas durante episodios postprandiales— donde el error de predicción aumenta transitoriamente sin que exista un fallo real del sensor. La inclusión del término $\gamma \cdot |\text{ROC}(k)|$ amplía el umbral precisamente en estos instantes, confirmando que la componente de tasa de cambio es esencial para alcanzar la precisión unitaria de forma robusta.
+El valor $\gamma = 0.05$ (Sección~\ref{subsec:seleccion_parametros}) es el que se aplicó en todas las evaluaciones de esta sección. El término $\gamma\,|\text{ROC}(k)|$ amplía el umbral en las transiciones glucémicas rápidas, que es donde reaparecían los falsos positivos al fijar $\gamma = 0$ en esa exploración, confirmando que la componente de tasa de cambio es esencial para alcanzar la precisión unitaria de forma robusta.
 
-\subsection*{Síntesis comparativa}
+\subsection*{Balance}
 
-El umbral adaptativo mejora de forma sistemática el perfil de detección del pipeline unificado sin degradar las métricas de imputación. La ganancia principal es la eliminación completa de falsos positivos, con una pérdida marginal de recall que el F1-score absorbe favorablemente en la mayoría de las arquitecturas. Estos resultados validan la hipótesis de diseño del umbral adaptativo y justifican su adopción como configuración estándar en todas las evaluaciones subsecuentes de esta tesis, incluyendo el pipeline desacoplado presentado en la Sección~\ref{sec:pipeline_desacoplado}.
+El umbral adaptativo elimina los falsos positivos del pipeline unificado a cambio de una pérdida pequeña de recall, y no altera el error de imputación. Con ese resultado queda adoptado como configuración estándar del resto de la tesis, incluido el pipeline desacoplado (Sección~\ref{sec:pipeline_desacoplado}).
 
 
 %\section{Resultados de imputación de las 4 arquitecturas} % (paper sec. 5.1)
@@ -1721,7 +1666,7 @@ Las métricas de imputación se reportan bajo la definición~D1, $|\hat{y}_{\tex
 \subsection{Independencia entre detección e imputación}
 \label{subsec:independencia}
 
-El resultado central de esta sección es la confirmación empírica \emph{exacta} de la independencia entre ambos módulos. En la Tabla~\ref{tab:44-f1}, las cuatro columnas de cada fila son idénticas: el $F_1$ de detección depende exclusivamente de la arquitectura del detector y es completamente insensible a qué imputador se acople. De forma simétrica, en la Tabla~\ref{tab:44-mae-d1} las cuatro filas son idénticas: el MAE de imputación depende exclusivamente del imputador. La misma estructura fila-idéntica se observa en el RMSE (Tabla~\ref{tab:44-rmse-d1}). En otras palabras, el error de detección y el error de imputación se factorizan por completo, lo que valida de manera directa la hipótesis de desacoplamiento y justifica tratar el diseño del detector y del imputador como problemas separables.
+El resultado central de esta sección es la confirmación empírica \emph{exacta} de la independencia entre ambos módulos. En la Tabla~\ref{tab:44-f1}, las cuatro columnas de cada fila son idénticas: el $F_1$ de detección depende exclusivamente de la arquitectura del detector y es completamente insensible a qué imputador se acople. De forma simétrica, en la Tabla~\ref{tab:44-mae-d1} las cuatro filas son idénticas: el MAE de imputación depende exclusivamente del imputador. La misma estructura fila-idéntica se observa en el RMSE (Tabla~\ref{tab:44-rmse-d1}). En otras palabras, el error de detección y el de imputación se factorizan por completo. La Sección~\ref{subsec:acoplamiento_pipeline} lo anticipaba, ya que el imputador actúa después de que el detector decide; las tablas lo verifican numéricamente y justifican tratar el diseño de ambos módulos como problemas separables.
 
 \begin{table}[htbp]
 \centering
@@ -1774,7 +1719,7 @@ CNN-LSTM ($0.869 \pm 0.017$) y, con una diferencia apreciable, 1D-CNN
 \subsection{Desempeño del imputador}
 \label{subsec:imputador}
 
-El análisis del imputador revela un compromiso claro entre dos perfiles. GRU alcanza el menor MAE ($2.92 \pm 0.26$~mg/dL, Tabla~\ref{tab:44-mae-d1}), es decir, el mejor error absoluto puro. 1D-CNN, en cambio, domina el ajuste global: obtiene el menor RMSE ($3.82 \pm 0.44$~mg/dL, Tabla~\ref{tab:44-rmse-d1}), el mayor $R^2$ ($0.975$–$0.980$, Tabla~\ref{tab:44-r2}) y el menor MARD ($0.66$–$0.69$\,\%, Tabla~\ref{tab:44-mard}). CNN-LSTM presenta un MAE comparable ($3.00 \pm 0.64$) pero un RMSE elevado ($6.00 \pm 1.78$) y un $R^2$ moderado ($\approx 0.88$), con mayor varianza. Transformer-LSTM es el peor imputador en todas las métricas (MAE $3.43 \pm 1.47$, RMSE $7.04 \pm 5.75$, $R^2 \approx 0.74$–$0.75$); su elevada desviación estándar es coherente con la inestabilidad de entrenamiento documentada en la Sección~\ref{sec:resultados_entrenamiento}.
+El análisis del imputador revela un compromiso claro entre dos perfiles. GRU alcanza el menor MAE ($2.92 \pm 0.26$~mg/dL, Tabla~\ref{tab:44-mae-d1}), es decir, el mejor error absoluto puro. 1D-CNN, en cambio, domina el ajuste global: obtiene el menor RMSE ($3.82 \pm 0.44$~mg/dL, Tabla~\ref{tab:44-rmse-d1}), el mayor $R^2$ ($0.975$–$0.980$, Tabla~\ref{tab:44-r2}) y el menor MARD ($0.66$–$0.69$\,\%, Tabla~\ref{tab:44-mard}). CNN-LSTM presenta un MAE comparable ($3.00 \pm 0.64$) pero un RMSE elevado ($6.00 \pm 1.78$) y un $R^2$ moderado ($\approx 0.88$), con mayor varianza. Transformer-LSTM es el peor imputador en todas las métricas (MAE $3.43 \pm 1.47$, RMSE $7.04 \pm 5.75$, $R^2 \approx 0.74$–$0.75$); su elevada desviación estándar apunta a que alguna de sus cinco semillas generaliza mal sobre el conjunto de prueba (Sección~\ref{sec:pipeline_unificado_fijo}).
 
 El contraste entre MAE y RMSE es informativo. GRU minimiza el MAE pero no el RMSE, lo que indica errores pequeños y frecuentes acompañados de algunos errores grandes; 1D-CNN, con el menor RMSE, se comporta de forma más consistente y penaliza menos los casos atípicos. Esta distinción es la base del compromiso entre configuraciones que se discute en la Sección~\ref{subsec:co-optimas}.
 
@@ -1869,7 +1814,7 @@ El análisis anterior no arroja un único ganador, sino dos configuraciones no d
   \item \textbf{GRU\,$\rightarrow$\,1D-CNN}: mejor $F_1$ de detección ($0.884$) junto con el mejor RMSE ($3.82$~mg/dL), el mejor $R^2$ ($0.9787$) y el mejor D3 ($5.37$~mg/dL).   Recomendada cuando se prioriza la calidad de reconstrucción global.
 \end{itemize}
 
-La elección entre ambas depende del objetivo clínico: minimizar el error medio favorece GRU\,$\rightarrow$\,GRU, mientras que privilegiar la fidelidad de la señal reconstruida y la robustez frente a errores grandes favorece GRU\,$\rightarrow$\,1D-CNN. La Figura~\ref{fig:44-frente} sitúa las 16 combinaciones en el plano detección–imputación y resalta ambas configuraciones.
+La elección entre ambas depende del criterio de imputación que se priorice: minimizar el error medio favorece GRU\,$\rightarrow$\,GRU, mientras que privilegiar la fidelidad de la señal reconstruida y la robustez frente a errores grandes favorece GRU\,$\rightarrow$\,1D-CNN. La Figura~\ref{fig:44-frente} sitúa las 16 combinaciones en el plano detección–imputación y resalta ambas configuraciones.
 
 \begin{figure}[htbp]
 \centering
@@ -1894,7 +1839,7 @@ La diferencia entre imputadores no es pareja entre los dos tipos de fallo. Duran
 
 La diagonal del pipeline desacoplado (detector = imputador) reproduce el esquema unificado de la Sección~\ref{sec:pipeline_unificado_adaptativo}. Al comparar cada detector con su mejor imputador posible, la reducción de MAE que aporta desacoplar es modesta: no supera el 15\,\% y en varios casos es inferior al 3\,\%. El mayor beneficio corresponde a Transformer-LSTM como detector, que pasa de $3.43$~mg/dL con su propio imputador a $2.92$~mg/dL al acoplarle GRU ($\approx 15$\,\%); para CNN-LSTM y 1D-CNN la mejora es de apenas $\approx 3$\,\%, y para GRU es nula, pues su propio imputador ya minimiza el MAE.
 
-Sin embargo, reducir el MAE no es el aporte principal del desacoplamiento. Su valor real reside en desligar la elección del detector de la del imputador, ampliando el espacio de diseño del sistema. El caso más ilustrativo es GRU\,$\rightarrow$\,1D-CNN: el esquema unificado no puede acceder a la calidad de reconstrucción de 1D-CNN (RMSE $3.82$, $R^2 \approx 0.98$, D3 $\approx 5.4$~mg/dL) sin usarlo también como detector, lo que obliga a aceptar el peor $F_1$ ($0.785$). El pipeline desacoplado rompe esa atadura y permite combinar el mejor detector (GRU, $F_1 = 0.884$) con el mejor imputador de reconstrucción (1D-CNN), una configuración inalcanzable en el esquema unificado. Este es el argumento central a favor del desacoplamiento: más que optimizar una métrica puntual, habilita combinaciones de diseño que el esquema unificado excluye por construcción. 
+La reducción de MAE es, por tanto, un beneficio menor. El valor de desacoplar está en la libertad de diseño: el esquema unificado solo alcanza la calidad de reconstrucción de 1D-CNN (RMSE $3.82$, $R^2 \approx 0.98$, D3 $\approx 5.4$~mg/dL) usándolo también como detector, lo que obliga a aceptar el peor $F_1$ ($0.785$). El pipeline desacoplado permite acoplar ese imputador al mejor detector, la GRU ($F_1 = 0.884$), una combinación que el esquema unificado no puede formar.
 
 %\section{Resultados de detección de fallos} se responde en 4.2, 4.3 y 4.4
 
@@ -1940,7 +1885,7 @@ DE    & 0.106 & 0.000 & 0.083 & 0.176 & 0.087 & 0.033 & 3.3 & 8.3 \\
 \end{tabular}
 \end{table}
  
-Las desconexiones se detectan en su totalidad en los tres pacientes. Las ráfagas de ruido son la parte difícil: solo se señala entre el 11 y el 27\,\% de sus muestras, lo que deja el recall global entre 0.57 y 0.79. La precisión va de 0.56 a 0.91 según el paciente y sigue a las falsas alarmas: 1.6 por día en el 596, 9.2 en el 540 y 18.2 en el 559.
+Las desconexiones se detectan en su totalidad en los tres pacientes. Las ráfagas de ruido son la parte difícil: solo se señala entre el 11 y el 27\,\% de sus muestras, lo que deja el recall global entre 0.57 y 0.79. La precisión va de 0.56 a 0.91 según el paciente y sigue a las falsas alarmas: 1.6 por día en el 596, 9.2 en el 540 y 18.2 en el 559. En Sorensen la precisión era de $1.000$, sin falsas alarmas (Sección~\ref{subsec:detector-f1}); en Ohio es de $0.754 \pm 0.176$ y el recall global de $0.681 \pm 0.106$.
  
 Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~\ref{tab:ohio_fpr_rangos}). Por debajo de 250~mg/dL la tasa se mantiene entre 0.0 y 6.0\,\%; por encima sube a 37.1\,\% en el 540 y a 63.3\,\% en el 559, sobre 48 y 108 muestras limpias respectivamente. El 596 no tiene muestras limpias en ese rango.
  
@@ -2006,10 +1951,8 @@ Se usan las dos definiciones de error de la Sección~\ref{sec:pipeline-desacopla
 \end{table}
  
 En D1, GRU\,$\rightarrow$\,GRU obtiene 11.39 $\pm$ 1.43~mg/dL y GRU\,$\rightarrow$\,1D-CNN 14.81 $\pm$ 1.22~mg/dL, frente a 3.55 $\pm$ 0.84~mg/dL de la persistencia. El orden entre las dos configuraciones se repite en los tres pacientes, y en los tres ambas quedan por encima de la persistencia. En las desconexiones, D3 vale 126.90 $\pm$ 14.16 y 130.07 $\pm$ 14.94~mg/dL, contra 53.95 $\pm$ 8.76~mg/dL del LOCF. La diferencia entre configuraciones en D3 va de 2 a 9~mg/dL según el paciente y cambia de signo: es menor con GRU\,$\rightarrow$\,1D-CNN en el 540 y con GRU\,$\rightarrow$\,GRU en el 559 y el 596. Con datos de Sorensen, GRU\,$\rightarrow$\,1D-CNN reconstruía las muestras con fallo con un error de 5.4~mg/dL frente a 14.3~mg/dL de GRU\,$\rightarrow$\,GRU (Tabla~\ref{tab:44-mae-d3}); en Ohio el D3 sobre todas las fallas es de 68.0 y 69.7~mg/dL, sin ventaja para ninguna de las dos.
- 
-El D3 de ruido, de 4.7~mg/dL en ambas configuraciones, es del mismo orden que la desviación media del ruido respecto a la referencia, entre 4 y 5~mg/dL. La mayor parte de esas muestras no se sustituye (Sección~\ref{subsec:ohio_deteccion}), así que la salida es la propia lectura ruidosa. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
- 
-La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Las curvas de color aparecen solo donde el detector señaló una muestra; en el resto la salida coincide con la lectura, y queda debajo de la referencia o, dentro de las ráfagas de ruido, de la línea gris. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella en cuanto el sensor reanuda la lectura. Los tramos cortos de color fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}). Los huecos reales, en gris, también se imputan, pero sin referencia no entran en el error.
+
+La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Las curvas de color aparecen solo donde el detector señaló una muestra. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella cuando el sensor reanuda la lectura; los tramos cortos de color fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}), y los huecos reales, en gris, también se imputan pero, sin referencia, no entran en el error.
  
 \begin{figure}[H]
     \centering
@@ -2018,7 +1961,7 @@ La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. 
     \label{fig:ohio_ventanas}
 \end{figure}
  
-La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. En las tres desconexiones de 50 muestras (4.2~h, paneles a--c) la referencia sube hasta 322, 292 y 310~mg/dL en los pacientes 540, 559 y 596, mientras que las dos configuraciones parten de la última lectura válida (196, 191 y 218~mg/dL) y descienden. GRU\,$\rightarrow$\,GRU llega a mínimos de 71, 66 y 106~mg/dL, y GRU\,$\rightarrow$\,1D-CNN de 94, 96 y 96~mg/dL; esta última se estabiliza cerca de 100~mg/dL, mientras que la primera sigue bajando hasta el final del episodio en el paciente 559. Cuando el sensor reanuda la lectura, el pipeline sustituye una muestra más y luego regresa a ella con saltos de 80 a 128~mg/dL. La razón de este descenso se discute en el Capítulo~\ref{cap:discusion}.
+La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. En las tres desconexiones de 50 muestras (4.2~h, paneles a--c) la referencia sube hasta 322, 292 y 310~mg/dL en los pacientes 540, 559 y 596, mientras que las dos configuraciones parten de la última lectura válida (196, 191 y 218~mg/dL) y descienden. GRU\,$\rightarrow$\,GRU llega a mínimos de 71, 66 y 106~mg/dL, y GRU\,$\rightarrow$\,1D-CNN de 94, 96 y 96~mg/dL; esta última se estabiliza cerca de 100~mg/dL, mientras que la primera sigue bajando hasta el final del episodio en el paciente 559. Al reanudarse la lectura, la salida vuelve a la referencia con saltos de 80 a 128~mg/dL. La razón de este descenso se discute en el Capítulo~\ref{cap:discusion}.
  
 \begin{figure}[H]
     \centering
@@ -2027,7 +1970,9 @@ La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. 
     \label{fig:ohio_episodios}
 \end{figure}
  
-En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga. La curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en los tramos de ruido, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras.
+En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el D3 de ruido, de 4.7~mg/dL en ambas configuraciones, es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
+
+Sin reajuste, el pipeline casi no interviene en el ruido y queda lejos de la referencia en las desconexiones largas, donde el LOCF tiene menos error en todos los intervalos de tiempo. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
  
 El error dentro de la desconexión crece con el tiempo transcurrido desde su inicio (Tabla~\ref{tab:ohio_error_tiempo}). En los primeros 30~min es de 40~mg/dL con GRU\,$\rightarrow$\,GRU y de 54~mg/dL con GRU\,$\rightarrow$\,1D-CNN; a la hora ya pasa de 90~mg/dL en ambas, y entre los 105 y los 150~min ronda los 195~mg/dL. El LOCF sube más despacio, de 26 a 89~mg/dL en esos mismos rangos. Los tres últimos rangos incluyen solo las desconexiones de 50 muestras, una por paciente, de modo que su nivel depende del lugar de la ventana en que cayó cada una; la comparación con el LOCF, en cambio, se hace sobre las mismas muestras.
  
@@ -2106,7 +2051,7 @@ Media $\pm$ DE & 4.65~$\pm$ 0.46 & 12.41~$\pm$ 1.23 & 4.66~$\pm$ 1.07 & 13.22~$\
 \end{tabular}
 \end{table}
  
-Esa diferencia del 540 viene sobre todo de su primera ráfaga (Figura~\ref{fig:ohio_sens_ruido}, paneles a y d), durante la cual la referencia baja de 141 a 47~mg/dL. Entre las muestras 271 y 278 las cinco redes señalan cada una de esas muestras y la salida se mantiene entre 138 y 142~mg/dL, mientras la referencia cae de 109 a 52~mg/dL. De las 5 muestras de la ráfaga con referencia por debajo de 70~mg/dL, la salida queda por debajo de ese nivel en una, contra cuatro con $\sigma$~=~5.6. Es un solo paciente y una sola colocación de fallos, así que no es posible saber si ocurriría en otras posiciones.
+La salida del 540, por encima de su lectura sin corregir, se explica sobre todo por su primera ráfaga (Figura~\ref{fig:ohio_sens_ruido}, paneles a y d), durante la cual la referencia baja de 141 a 47~mg/dL. Entre las muestras 271 y 278 las cinco redes señalan cada una de esas muestras y la salida se mantiene entre 138 y 142~mg/dL, mientras la referencia cae de 109 a 52~mg/dL. De las 5 muestras de la ráfaga con referencia por debajo de 70~mg/dL, la salida queda por debajo de ese nivel en una, contra cuatro con $\sigma$~=~5.6. Se observa en un solo paciente y con una sola colocación de fallos.
  
 \begin{figure}[H]
     \centering
@@ -2115,8 +2060,7 @@ Esa diferencia del 540 viene sobre todo de su primera ráfaga (Figura~\ref{fig:o
     \label{fig:ohio_sens_ruido}
 \end{figure}
  
-En las muestras señaladas, la mediana del coeficiente $\alpha$ del suavizado (Ecuación~\ref{eq:alpha_adaptativo}) baja de 0.02--0.04 con $\sigma$~=~5.6 a 0.003--0.006 con $\sigma$~=~15. En ambos escenarios la salida cambia menos de 0.5~mg/dL respecto de la muestra anterior en la mayoría de esas muestras (70 a 96\,\% con $\sigma$~=~5.6 y 80 a 93\,\% con $\sigma$~=~15), lo que produce los tramos planos de la figura. Con $\sigma$~=~15 el error de detección supera además $\tau_{\mathrm{D}} = 60$~mg/dL en 14, 8 y 5 de las 325 evaluaciones de ruido (65 muestras por 5 redes) de los pacientes 540, 559 y 596, con un máximo de 76.5~mg/dL contra 30.8~mg/dL con $\sigma$~=~5.6. Esas muestras se clasifican como desconexión y la salida toma la estimación del imputador sin suavizar. Los indicadores clínicos de la señal reconstruida prácticamente no cambian con $\sigma$~=~15 (Sección~\ref{subsec:clinico_ohio}).
-
+En las muestras señaladas, la mediana del coeficiente $\alpha$ del suavizado (Ecuación~\ref{eq:alpha_adaptativo}) baja de 0.02--0.04 con $\sigma$~=~5.6 a 0.003--0.006 con $\sigma$~=~15. En ambos escenarios la salida cambia menos de 0.5~mg/dL respecto de la muestra anterior en la mayoría de esas muestras (70 a 96\,\% y 80 a 93\,\%), de ahí los tramos planos de la figura; con $\sigma$~=~15 lo que cambia es que hay muchas más muestras señaladas. Además, el error de detección supera $\tau_{\mathrm{D}} = 60$~mg/dL en 14, 8 y 5 de las 325 evaluaciones de ruido (65 muestras por 5 redes) de los pacientes 540, 559 y 596, con un máximo de 76.5~mg/dL contra 30.8~mg/dL con $\sigma$~=~5.6; esas muestras se clasifican como desconexión y la salida toma la estimación del imputador sin suavizar. Los indicadores clínicos de la señal reconstruida prácticamente no cambian (Sección~\ref{subsec:clinico_ohio}).
 
 \section{Validación clínica e impacto sobre indicadores TIR/hipo/hiper}
 \label{sec:validacion_clinica}
@@ -2124,7 +2068,7 @@ En las muestras señaladas, la mediana del coeficiente $\alpha$ del suavizado (E
 \subsection{Datos sintéticos (Sorensen)}
 \label{subsec:clinico_sorensen}
 
-Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios --- la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline --- para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
+Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios: la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline, para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
 
 \begin{table}[!htb]
 \centering
@@ -2159,7 +2103,7 @@ Las diferencias son pequeñas en términos absolutos. Sobre una simulación que 
 \subsection{Datos reales (OhioT1DM)}
 \label{subsec:clinico_ohio}
 
-Con pacientes reales los indicadores dejan de estar saturados. Se aplican los de la Sección~\ref{subsec:clinico_sorensen} a los tres pacientes y a las dos configuraciones co-óptimas, sobre las mismas muestras en todos los escenarios: las que tienen referencia a partir del arranque, de modo que los huecos reales quedan fuera. Cada paciente resume sus 5 redes con la media, y la Tabla~\ref{tab:clinico_ohio} da la media y la desviación estándar entre los tres pacientes.
+Con pacientes reales los indicadores dejan de estar saturados. Se aplican los de la Sección~\ref{subsec:clinico_sorensen} a los tres pacientes y a las dos configuraciones co-óptimas, sobre las mismas muestras en todos los escenarios: las que tienen referencia a partir del arranque, de modo que los huecos reales quedan fuera. La Tabla~\ref{tab:clinico_ohio} da la media y la desviación estándar entre los tres pacientes.
  
 \begin{table}[!htb]
 \centering
@@ -2183,11 +2127,11 @@ GMI (\%)              & 6.77 $\pm$ 0.34   & 6.69 $\pm$ 0.38   & 6.61 $\pm$ 0.34 
 \end{tabular}
 \end{table}
  
-El TIR de la referencia promedia 71.5~$\pm$ 8.9\,\%, con 62.3\,\% en el 559, y el tiempo sobre 250~mg/dL promedia 6.3~$\pm$ 3.7\,\%. El 540 pasa 3.8\,\% del tiempo por debajo de 54~mg/dL y es el único de los tres con TBR nivel 2. En promedio, la referencia cumple los objetivos de TIR, TAR nivel 1 y GMI, y no los de TBR (en sus dos niveles), TAR nivel 2 ni CV.
- 
-Con el pipeline, el TIR sube a 75.7\,\% con GRU\,$\rightarrow$\,GRU y a 76.4\,\% con GRU\,$\rightarrow$\,1D-CNN, 4.2 y 4.9 puntos por encima de la referencia; en cada paciente la diferencia va de 4.0 a 5.1 puntos. El tiempo sobre 250~mg/dL baja de 6.3\,\% a 3.2\,\%, el CV de 38.5\,\% a 35.2 y 34.8\,\%, y el GMI de 6.77\,\% a 6.61 y 6.62\,\%. Con ello el pipeline cumple tres objetivos que la referencia no cumple: TBR nivel 2, TAR nivel 2 y CV. Descartar las muestras con fallo mueve los mismos indicadores en la misma dirección, pero menos: $+$2.5 puntos de TIR, $-$2.9 de CV y $-$0.08 de GMI. En el agregado, los tres contrastes de la Sección~\ref{subsec:metricas_clinicas} quedan más lejos de la referencia con el pipeline que con la señal sin imputar.
- 
-La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En el 596, tanto el pipeline como la señal sin imputar eliminan el 2.6\,\% de tiempo sobre 250~mg/dL que tiene la referencia. En el 559, el TAR nivel 2 baja de 10.1\,\% a 6.5\,\% y el GMI de 7.11\,\% a 6.96 y 6.98\,\%, por debajo del 7\,\% que la referencia supera. En el 540, el TBR nivel 2 baja de 3.8\,\% a 2.1\,\%. El cambio se concentra en las desconexiones (Sección~\ref{subsec:ohio_imputacion}), y su discusión se retoma en el Capítulo~\ref{cap:discusion}.
+La referencia ya incumple varios objetivos: el tiempo sobre 250~mg/dL promedia 6.3~$\pm$ 3.7\,\%, el CV 38.5~$\pm$ 7.6\,\% y el 540 pasa 3.8\,\% del tiempo por debajo de 54~mg/dL. Su TIR, de 71.5~$\pm$ 8.9\,\%, cumple el objetivo en promedio pero no en el 559 (62.3\,\%). Con el pipeline, el TIR sube a 75.7\,\% con GRU\,$\rightarrow$\,GRU y a 76.4\,\% con GRU\,$\rightarrow$\,1D-CNN, 4.2 y 4.9 puntos por encima de la referencia; en cada paciente la diferencia va de 4.0 a 5.1 puntos. El tiempo sobre 250~mg/dL baja a 3.2\,\%, el CV a 35.2 y 34.8\,\% y el GMI de 6.77 a 6.61 y 6.62\,\%, de modo que el pipeline cumple tres objetivos que la referencia no cumple: TBR nivel 2, TAR nivel 2 y CV.
+
+Descartar las muestras con fallo mueve los mismos indicadores en la misma dirección, pero menos: $+$2.5 puntos de TIR, $-$2.9 de CV y $-$0.08 de GMI. En el agregado, los tres contrastes de la Sección~\ref{subsec:metricas_clinicas} quedan más lejos de la referencia con el pipeline que con la señal sin imputar. El LOCF (Sección~\ref{subsec:datos_reales}) queda a 0.5 puntos de TIR, con un CV 3.3 puntos menor y un GMI 0.05 menor.
+
+La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En el 596, el pipeline y la señal sin imputar eliminan el 2.6\,\% de tiempo sobre 250~mg/dL de la referencia. En el 559, el TAR nivel 2 baja de 10.1\,\% a 6.5\,\% y el GMI de 7.11\,\% a 6.96 y 6.98\,\%, es decir, por debajo del 7\,\% que la referencia supera. El cambio se concentra en las desconexiones (Sección~\ref{subsec:ohio_imputacion}), y su discusión se retoma en el Capítulo~\ref{cap:discusion}.
  
 \begin{figure}[H]
     \centering
@@ -2196,13 +2140,14 @@ La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En e
     \label{fig:ohio_clinico_rangos}
 \end{figure}
  
-El LOCF (Sección~\ref{subsec:datos_reales}) queda a 0.5 puntos de TIR de la referencia, con un CV 3.3 puntos menor y un GMI 0.05 menor. Frente al pipeline, la diferencia está sobre todo en el TIR y el GMI.
+% El LOCF (Sección~\ref{subsec:datos_reales}) queda a 0.5 puntos de TIR de la referencia, con un CV 3.3 puntos menor y un GMI 0.05 menor. Frente al pipeline, la diferencia está sobre todo en el TIR y el GMI.
  
-Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores casi no cambian. En el agregado, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01; la referencia y la señal sin imputar no dependen de $\sigma$. El único cambio apreciable es el del 540, con un TBR nivel 1 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor.
+Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores casi no cambian. En el agregado, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01; el único cambio apreciable es el del 540, con un TBR nivel 1 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor.
+ 
 
  % --- (aquí va el texto principal de 4.6.2, aún pendiente) ---
  
-Con el ruido de mayor amplitud (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores de la Tabla~\ref{tab:clinico_ohio} casi no cambian. En el agregado de los tres pacientes, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01 puntos. Los escenarios de referencia, sin imputar y LOCF no dependen de $\sigma$. El único cambio apreciable es el del 540: un TBR$_1$ 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor, en el paciente de la ráfaga con descenso hacia hipoglucemia. La concordancia de categoría dentro de las ráfagas de ruido baja de 99.4~$\pm$ 1.1 a 97.1~$\pm$ 5.0\,\% con GRU\,$\rightarrow$\,GRU y a 97.9~$\pm$ 3.6\,\% con GRU\,$\rightarrow$\,1D-CNN, otra vez por el 540; en el 559 y el 596 se mantiene en 100\,\%.
+
 
 % =================================================
 % CAPÍTULO 5. DISCUSIÓN
