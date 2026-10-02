@@ -44,7 +44,7 @@ legend_fs       = 10;
 axis_label_fs   = 11;
 axis_label_bold = true;
 tick_fs         = 10;
-value_fs        = 9;                  % tamano del numero de TIR dentro de la barra
+value_fs        = 12;                  % tamano del numero de TIR dentro de la barra
 letters         = 'abc';
 
 % Colores de las cinco bandas, de abajo hacia arriba:
