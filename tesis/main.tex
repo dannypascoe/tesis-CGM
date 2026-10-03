@@ -816,11 +816,11 @@ Los resultados se reportan a lo largo de toda la tesis como la media $\pm$ una d
 \subsection{Resultados de la validación interna}
 \label{subsec:resultados_validacion_interna}
 
-La Tabla~\ref{tab:val_mse} reporta el MSE mínimo de validación obtenido por cada arquitectura, promediado sobre las cinco corridas independientes. Estos valores se utilizan exclusivamente como indicador agregado de la estabilidad del proceso de entrenamiento; las métricas de desempeño final del sistema (MAE, RMSE, MARD, Accuracy, F1, AUC) se reportan en el Capítulo~\ref{cap:resultados} sobre el conjunto de prueba independiente.
+La Tabla~\ref{tab:val_mse} reproduce el MSE mínimo de validación que reportó el trabajo previo del grupo de investigación~\cite{sanchez2025imputation} para cada arquitectura, promediado sobre cinco corridas independientes. Los valores obtenidos en esta tesis con las mismas semillas se presentan en la Sección~\ref{sec:resultados_entrenamiento}. Estos valores se utilizan exclusivamente como indicador agregado de la estabilidad del proceso de entrenamiento; las métricas de desempeño final del sistema (MAE, RMSE, MARD, Accuracy, F1, AUC) se reportan en el Capítulo~\ref{cap:resultados} sobre el conjunto de prueba independiente.
 
 \begin{table}[h]
     \centering
-    \caption{MSE mínimo de validación interna sobre cinco corridas independientes por arquitectura. Valores en escala normalizada.}
+    \caption{MSE mínimo de validación interna reportado en el trabajo previo, sobre cinco corridas independientes por arquitectura. Valores en escala normalizada.}
     \label{tab:val_mse}
     \begin{tabular}{lcc}
         \toprule
@@ -1018,11 +1018,11 @@ donde $d = 6$ es el horizonte de la ventana deslizante. Con $T_s = 5$~min, 1~mg/
 \subsubsection{Interpretación física de los parámetros}
 \label{subsec:interpretacion_parametros}
 
-Cada uno de los tres parámetros de la Ecuación~\eqref{eq:umbral_adaptativo} cumple un rol específico, y su interpretación física justifica tanto su presencia en la fórmula como los rangos de valores en los que resulta razonable buscar su configuración óptima.
+Cada uno de los tres parámetros de la Ecuación~\eqref{eq:umbral_adaptativo} cumple un rol específico, y su interpretación física justifica tanto su presencia en la fórmula como el valor que se les asignó. %   como los rangos de valores en los que resulta razonable buscar su configuración óptima.
 
-\paragraph{Parámetro $\beta$: proporcionalidad con el nivel de glucosa.} El término $\beta \cdot G_{\mathrm{ref}}(k)$ confiere al umbral su carácter heteroscedástico, en directa correspondencia con la lógica de la norma ISO 15197:2013~\cite{iso15197_2013}. Bajo esta norma, la tolerancia clínica de los sistemas CGM es absoluta ($\pm 15$~mg/dL) en el rango hipoglucémico y relativa ($\pm 15\%$) en los rangos normo- e hiperglucémico. Con $\beta = 0.10$ la tolerancia proporcional queda en el 10\,\%, por debajo del 15\,\% de la norma, y el umbral resulta más estricto que el que ella considera aceptable. Adicionalmente, este valor está alineado con valores típicos del MARD (\textit{Mean Absolute Relative Difference}) reportados para sistemas CGM modernos, los cuales se sitúan habitualmente entre el 8\% y el 12\%~\cite{huang2022accuracy}.
+\paragraph{Parámetro $\beta$: proporcionalidad con el nivel de glucosa.} El término $\beta \cdot G_{\mathrm{ref}}(k)$ confiere al umbral su carácter heteroscedástico, en directa correspondencia con la lógica de la norma ISO 15197:2013~\cite{iso15197_2013}. Bajo esta norma, la tolerancia clínica de los sistemas CGM es absoluta ($\pm 15$~mg/dL) en el rango hipoglucémico y relativa ($\pm 15\%$) en los rangos normo- e hiperglucémico. Con $\beta = 0.10$ la tolerancia proporcional queda en el 10\,\%, por debajo del 15\,\% de la norma, y el umbral resulta más estricto que el que ella considera aceptable. Se fijó en ese valor para que, a 100~mg/dL, el componente proporcional coincida con los 10~mg/dL del umbral fijo del artículo original ($0.10 \times 100 = 10$). Adicionalmente, este valor está alineado con valores típicos del MARD (\textit{Mean Absolute Relative Difference}) reportados para sistemas CGM modernos, los cuales se sitúan habitualmente entre el 8\% y el 12\%~\cite{huang2022accuracy}.
 
-\paragraph{Parámetro $\tau_{\min}$: piso de seguridad en hipoglucemia severa.} Cuando el nivel de glucosa es muy bajo, la pura proporcionalidad $\beta \cdot G_{\mathrm{ref}}(k)$ produciría umbrales excesivamente pequeños que resultarían vulnerables al ruido inherente del sensor. Por ejemplo, a 50~mg/dL --un nivel de hipoglucemia clínicamente significativo-- el término proporcional sería de apenas 5~mg/dL, comparable a las fluctuaciones de ruido típicas. Para evitar este escenario, se introduce un piso $\tau_{\min} = 7$~mg/dL que garantiza que el umbral nunca descienda por debajo de un valor compatible con el nivel de ruido esperable, preservando la robustez de la detección incluso en condiciones de hipoglucemia severa.
+\paragraph{Parámetro $\tau_{\min}$: piso de seguridad en hipoglucemia severa.} Cuando el nivel de glucosa es muy bajo, la pura proporcionalidad $\beta \cdot G_{\mathrm{ref}}(k)$ produciría umbrales excesivamente pequeños que resultarían vulnerables al ruido inherente del sensor. Por ejemplo, a 50~mg/dL --un nivel de hipoglucemia clínicamente significativo-- el término proporcional sería de apenas 5~mg/dL, comparable a las fluctuaciones de ruido típicas. Para evitar este escenario se introduce un piso $\tau_{\min} = 7$~mg/dL. Es el valor que daría $\beta$ a 70~mg/dL ($0.10 \times 70$), el límite inferior del rango objetivo, de modo que por debajo de ese nivel el umbral deja de reducirse en lugar de seguir a la glucosa hacia magnitudes comparables con el ruido del sensor.
 
 \paragraph{Parámetro $\gamma$: peso del término de dinámica.} El factor $(1 + \gamma\,|\mathrm{ROC}(k)|)$ relaja el umbral durante periodos de cambio rápido de la glucosa. En las excursiones rápidas (posprandiales o por bolo de insulina) las predicciones de la red tienen un error transitorio mayor, porque deben seguir trayectorias que cambian deprisa; bajo un umbral que no lo contemple, ese error se clasificaría como fallo y se sustituirían lecturas válidas por predicciones del modelo. Con $\gamma = 0.05$, valor elegido de forma empírica (Sección~\ref{subsec:seleccion_parametros}), una tasa de cambio de 2~mg/dL por muestra relaja el umbral aproximadamente un 10\,\%. Valores mayores lo relajarían en exceso y dejarían pasar más fallos.
 
@@ -1033,13 +1033,13 @@ Con los parámetros $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL, e
 
 \begin{table}[h]
     \centering
-    \caption{Valores del umbral adaptativo $\tau(k)$ en distintos escenarios glucémicos, con $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL.}
+    \caption{Valores del umbral adaptativo $\tau(k)$ en distintos escenarios glucémicos, con $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL. ROC en mg/dL por muestra.}
     \label{tab:umbral_rangos}
     \begin{tabular}{lccc}
         \toprule
         \textbf{Rango glucémico} & $G_{\mathrm{ref}}(k)$ \textbf{[mg/dL]} & $\tau$ \textbf{con ROC = 0 [mg/dL]} & $\tau$ \textbf{con $|$ROC$|$ = 2 [mg/dL]} \\
         \midrule
-        Hipoglucemia severa  & 50  & 7.0  & 7.0  \\
+        Hipoglucemia severa  & 50  & 7.0  & 7.7  \\
         Hipoglucemia leve    & 70  & 7.0  & 7.7  \\
         Normoglucemia baja   & 100 & 10.0 & 11.0 \\
         Normoglucemia alta   & 140 & 14.0 & 15.4 \\
@@ -1049,7 +1049,7 @@ Con los parámetros $\beta = 0.10$, $\gamma = 0.05$ y $\tau_{\min} = 7$~mg/dL, e
     \end{tabular}
 \end{table}
 
-Tres observaciones se desprenden de esta tabla. Primero, en condiciones de glucosa estable y normoglucemia (100~mg/dL), el umbral adaptativo produce exactamente el mismo valor que el umbral fijo del paper original (10~mg/dL), lo cual permite afirmar que la formulación adaptativa no altera arbitrariamente el punto de operación clínico tradicional, sino que lo extiende a otros rangos glucémicos. Segundo, en hipoglucemia severa el piso $\tau_{\min}$ se activa, garantizando una sensibilidad mínima incluso cuando la pura proporcionalidad sería insuficiente. Tercero, «el factor de relajación crece de forma gradual (10\,\% con 2~mg/dL por muestra y 50\,\% con 10), de modo que la tasa de cambio modula el umbral sin llegar a dominarlo, lo que limita el riesgo de que las excursiones rápidas conviertan al detector en insensible a fallos genuinos.
+Tres observaciones se desprenden de esta tabla. Primero, con glucosa estable a 100~mg/dL el umbral adaptativo vale 10~mg/dL, lo mismo que el umbral fijo del artículo original, de modo que la formulación conserva el punto de operación tradicional y lo extiende a otros rangos glucémicos. Segundo, en hipoglucemia severa el piso $\tau_{\min}$ se activa, garantizando una sensibilidad mínima incluso cuando la pura proporcionalidad sería insuficiente. Tercero, el factor de relajación crece de forma gradual (10\,\% con 2~mg/dL por muestra y 50\,\% con 10), de modo que la tasa de cambio modula el umbral sin llegar a dominarlo, lo que limita el riesgo de que las excursiones rápidas conviertan al detector en insensible a fallos genuinos.
 
 \subsubsection{Selección empírica de los parámetros}
 \label{subsec:seleccion_parametros}
@@ -1438,8 +1438,7 @@ estándar como indicadores agregados de estabilidad.
 
 \begin{table}[htbp]
 \centering
-\caption{MSE de validación por semilla para cada arquitectura
-         (unidades: mg$^2$/dL$^2$).}
+\caption{MSE de validación por semilla para cada arquitectura (escala normalizada).}
 \label{tab:training_mse}
 \begin{tabular}{lrrrrrrr}
 \toprule
@@ -1448,7 +1447,7 @@ estándar como indicadores agregados de estabilidad.
 \textbf{Media} & \textbf{DE} \\
 \midrule
 CNN-LSTM          & 0.0149 & 0.0137 & 0.0145 & 0.0156 & 0.0145
-                  & 0.0146 & 0.0007 \\
+                  & 0.0147 & 0.0007 \\
 GRU               & 0.0137 & 0.0138 & 0.0138 & 0.0133 & 0.0135
                   & 0.0136 & 0.0002 \\
 1D-CNN            & 0.0252 & 0.0230 & 0.0237 & 0.0269 & 0.0252
@@ -1640,7 +1639,7 @@ El MARD, sin embargo, mejora de forma consistente en todas las arquitecturas (GR
 
 \subsection*{Rol del componente de tasa de cambio}
 
-El valor $\gamma = 0.05$ (Sección~\ref{subsec:seleccion_parametros}) es el que se aplicó en todas las evaluaciones de esta sección. El término $\gamma\,|\text{ROC}(k)|$ amplía el umbral en las transiciones glucémicas rápidas, que es donde reaparecían los falsos positivos al fijar $\gamma = 0$ en esa exploración, confirmando que la componente de tasa de cambio es esencial para alcanzar la precisión unitaria de forma robusta.
+El valor $\gamma = 0.05$ (Sección~\ref{subsec:seleccion_parametros}) es el que se aplicó en todas las evaluaciones de esta sección. El término $\gamma\,|\text{ROC}(k)|$ amplía el umbral en las transiciones glucémicas rápidas,que es donde reaparecían los falsos positivos al fijar $\gamma = 0$ en esa exploración. Recalculado sobre las salidas guardadas, $\gamma = 0$ deja entre 0.8 y 2.0 falsos positivos por corrida según la arquitectura, y con $\gamma = 0.05$ no hay ninguno en las 20 corridas.
 
 \subsection*{Balance}
 
@@ -1858,7 +1857,7 @@ La reducción de MAE es, por tanto, un beneficio menor. El valor de desacoplar e
  
 Los parámetros del sistema se fijaron con datos sintéticos; aquí se prueba si se sostienen sobre registros reales. OhioT1DM sirve para ello porque reúne, en pacientes reales, las tres variables que consume el sistema --glucosa del sensor, insulina administrada y carbohidratos ingeridos-- y contiene interrupciones naturales del sensor.
  
-Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección y la imputación con el ruido del protocolo del artículo ($\sigma$~=~5.6~mg/dL), las mismas medidas con ruido de mayor amplitud ($\sigma$~=~15~mg/dL) y, al final, una comprobación sobre la forma de construir las entradas de insulina y carbohidratos. Los indicadores clínicos sobre la señal reconstruida se presentan en la Sección~\ref{sec:validacion_clinica}, junto con los de los datos sintéticos.
+Se aplican las dos configuraciones co-óptimas con los modelos tal como quedaron entrenados, sin reentrenamiento ni ajuste. La Sección~\ref{subsec:datos_reales} describe los tres pacientes, las ventanas de 5 días, la construcción de las entradas y los fallos inyectados, que aquí sirven para tener una referencia con la cual medir el error. Se reportan la detección y la imputación con el ruido del protocolo del artículo ($\sigma$~=~5.6~mg/dL) y con ruido de mayor amplitud ($\sigma$~=~15~mg/dL). Los indicadores clínicos sobre la señal reconstruida se presentan en la Sección~\ref{sec:validacion_clinica}, junto con los de los datos sintéticos.
  
 \subsection{Detección de fallos}
 \label{subsec:ohio_deteccion}
@@ -1950,7 +1949,7 @@ Se usan las dos definiciones de error de la Sección~\ref{sec:pipeline-desacopla
 \end{tabular}
 \end{table}
  
-En D1, GRU\,$\rightarrow$\,GRU obtiene 11.39 $\pm$ 1.43~mg/dL y GRU\,$\rightarrow$\,1D-CNN 14.81 $\pm$ 1.22~mg/dL, frente a 3.55 $\pm$ 0.84~mg/dL de la persistencia. El orden entre las dos configuraciones se repite en los tres pacientes, y en los tres ambas quedan por encima de la persistencia. En las desconexiones, D3 vale 126.90 $\pm$ 14.16 y 130.07 $\pm$ 14.94~mg/dL, contra 53.95 $\pm$ 8.76~mg/dL del LOCF. La diferencia entre configuraciones en D3 va de 2 a 9~mg/dL según el paciente y cambia de signo: es menor con GRU\,$\rightarrow$\,1D-CNN en el 540 y con GRU\,$\rightarrow$\,GRU en el 559 y el 596. Con datos de Sorensen, GRU\,$\rightarrow$\,1D-CNN reconstruía las muestras con fallo con un error de 5.4~mg/dL frente a 14.3~mg/dL de GRU\,$\rightarrow$\,GRU (Tabla~\ref{tab:44-mae-d3}); en Ohio el D3 sobre todas las fallas es de 68.0 y 69.7~mg/dL, sin ventaja para ninguna de las dos.
+En D1, GRU\,$\rightarrow$\,GRU obtiene 11.39 $\pm$ 1.43~mg/dL y GRU\,$\rightarrow$\,1D-CNN 14.81 $\pm$ 1.22~mg/dL, frente a 3.55 $\pm$ 0.84~mg/dL de la persistencia. El orden entre las dos configuraciones se repite en los tres pacientes, y en los tres ambas quedan por encima de la persistencia. En las desconexiones, D3 vale 126.90 $\pm$ 14.16 y 130.07 $\pm$ 14.94~mg/dL, contra 53.95 $\pm$ 8.76~mg/dL del LOCF. La diferencia entre configuraciones en D3 va de 2 a 9~mg/dL según el paciente y cambia de signo: es menor con GRU\,$\rightarrow$\,1D-CNN en el 540 y con GRU\,$\rightarrow$\,GRU en el 559 y el 596. Con datos de Sorensen, GRU\,$\rightarrow$\,1D-CNN reconstruía las muestras con fallo con un error de 5.4~mg/dL frente a 14.3~mg/dL de GRU\,$\rightarrow$\,GRU (Tabla~\ref{tab:44-mae-d3}); en Ohio esa ventaja no aparece en ninguno de los dos tipos de fallo (Tabla~\ref{tab:ohio_imputacion}).
 
 La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Las curvas de color aparecen solo donde el detector señaló una muestra. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella cuando el sensor reanuda la lectura; los tramos cortos de color fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}), y los huecos reales, en gris, también se imputan pero, sin referencia, no entran en el error.
  
@@ -2144,21 +2143,90 @@ La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En e
  
 Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores casi no cambian. En el agregado, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01; el único cambio apreciable es el del 540, con un TBR nivel 1 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor.
  
-
- % --- (aquí va el texto principal de 4.6.2, aún pendiente) ---
- 
-
-
 % =================================================
 % CAPÍTULO 5. DISCUSIÓN
 % =================================================
 \chapter{Discusión}
 \label{cap:discusion}
-
-\section{Hallazgos principales y comparación con el estado del arte}
-\section{Trade-off precisión–recall del umbral adaptativo: justificación clínica}
-\section{Implicaciones clínicas: por qué los falsos positivos importan en CGM}
-\section{Limitaciones (un solo paciente real, generalización, costo computacional)}
+ 
+% Entrada del capítulo (2 o 3 frases): qué se discute y en qué orden (hipótesis, detección,
+% imputación, implicaciones clínicas, limitaciones). Sin repetir resultados.
+ 
+\section{Hallazgos principales y relación con el trabajo previo}
+\label{sec:disc_hallazgos}
+% IDEA: qué se cumplió de la hipótesis y qué no, cláusula por cláusula.
+%  (a) Umbral adaptativo + pipeline desacoplado mejoran al esquema unificado de umbral fijo en Sorensen: sin falsos positivos con pérdida pequeña de recall; desacoplar da libertad de diseño, no menor MAE (Tablas 4.3 y 4.4, 4.4.6). SE CUMPLE.
+%  (b) Conserva su desempeño de lo simulado a lo real. D1 de GRU->GRU pasa de 2.92 a 11.39 mg/dL; F1 de 0.884 a 0.702 +- 0.087. SE CUMPLE EN PARTE.
+%  (c) Detecta las desconexiones: recall 1.000 con sigma = 5.6 y con 15. SE CUMPLE.
+%  (d) Indicadores clínicos cercanos a la referencia: con las desconexiones sobre excursiones, dTIR = +4.2 y +4.9 puntos (por paciente, 4.0 a 5.1) y los tres contrastes quedan más lejos que con la señal sin imputar. NO SE CUMPLE (corrida típica: +0.6 y +1.0).
+%  Opcional: tabla de 4 o 5 filas «cláusula | evidencia | veredicto» en lugar de párrafos.
+% RELACIÓN CON EL TRABAJO PREVIO (un párrafo; sustituye a la «comparación con el estado del arte»):
+%  el orden entre arquitecturas coincide con el publicado; Ohio pasa de 1 a 3 pacientes; ARIMA y
+%  TCN vienen del artículo y no se repiten. PENDIENTE: comparar con la Tabla 6 del artículo (Ohio, un paciente) cuando se sepa qué pesos y datos usó esa validación.
+ 
+\section{Detección: el compromiso entre precisión y recall del umbral adaptativo}
+\label{sec:disc_deteccion}
+% IDEA: el umbral compra precisión a cambio de no ver el ruido pequeño.
+% CUMPLE LA PROMESA de 4.5.1 («ruido y falsas alarmas por encima de 250 mg/dL»).
+%  - Precisión 1.000 en Sorensen; en Ohio 0.754 +- 0.176, FPR 3.9 +- 3.3 %, 9.7 +- 8.3 falsas
+%    alarmas por día (18.2 en el 559). Dónde caen: Tabla ohio_fpr_rangos.
+%  - Ruido: el umbral promedia 13 a 15 mg/dL y el ruido con sigma = 5.6 se aparta 4.65 mg/dL de la
+%    referencia: recall 0.189. Con sigma = 15 (12.41 mg/dL) el recall sube a 0.614 y las falsas
+%    alarmas no cambian (9.7 -> 9.9 por día); el AUC pasa de 0.892 a 0.950.
+%  - Lectura clínica: el piso de sensibilidad (~ umbral) es del orden de la tolerancia ISO 15197
+%    (10 % del umbral frente al 15 % de la norma). El ruido que no se ve es el que cae dentro de esa
+%    tolerancia.
+%  - Selección de gamma (exploratoria; recalculado offline): sin gamma hay 0.8 a 2.0 falsos
+%    positivos por corrida; con 0.05 ninguno en 20 corridas; el recall baja de 0.787 a 0.769 y a
+%    0.721 con gamma = 0, 0.05 y 0.15 (CNN-LSTM).
+%  - Choque con tau_D = 60 mg/dL con sigma = 15: 14, 8 y 5 de 325 evaluaciones lo superan
+%    (máx. 76.5 contra 30.8) y se tratan como desconexión.
+ 
+\section{Imputación: de los datos simulados a los reales}
+\label{sec:disc_imputacion}
+% (SECCIÓN NUEVA: el hallazgo más grande de Ohio no tenía casa en el esqueleto anterior.)
+% IDEA: lo que funcionaba sobre Sorensen no se traslada a desconexiones largas en Ohio.
+% CUMPLE LA PROMESA de 4.5.2 («la razón de este descenso se discute en el Capítulo 5»).
+%  - D1: 2.92 -> 11.39 (GRU->GRU); 3.55 de la persistencia (tesis, Tabla ohio_imputacion).
+%  - Desconexiones: D3 126.90 y 130.07 contra 53.95 del LOCF (razón 2.4; 1.2 a 1.3 en la corrida típica con desconexiones sin glucosa >250). Sesgo -117 mg/dL: la salida está en 96 a 127 mg/dL
+%    mientras la referencia promedia 212, 202 y 259; correlación dentro de la desconexión -0.14,
+%    -0.51 y 0.05. Coherente con un regreso hacia el rango de Sorensen (media 98 mg/dL), no probado.
+%  - La ventaja de 1D-CNN en Sorensen (5.4 contra 14.3 mg/dL; LOCF 13.8) no aparece en Ohio.
+%  - Ruido: D3 = nivel del ruido; el pipeline queda como la lectura sin corregir (4.66 y 4.65).
+%    Con sigma = 15: 13.2 y 12.3 contra 12.4 sin corregir; mejora en 559 y 596 (8.4 y 8.9 contra 11.0 y 13.0), empeora en 540 (22.4 contra 13.2).
+%  - Suavizado: mediana de alfa 0.02-0.04 -> 0.003-0.006; salida plana. Caso 540 (sigma = 15): la referencia baja de 141 a 47 mg/dL y la salida queda en 138-142; 1 de 5 muestras <70 contra 4.
+%  - Límite de interpretación: modelos congelados, entrenados solo con Sorensen; una colocación.
+ 
+\section{Implicaciones clínicas}
+\label{sec:disc_clinicas}
+% IDEA: el error de la imputación tiene una dirección, y es la que parece mejor control.
+% CUMPLE LA PROMESA de 4.6.2 («su discusión se retoma en el Capítulo 5»).
+%  - El cambio se concentra en las desconexiones: restituyendo la referencia solo ahí, el TIR
+%    vuelve a 71.6 % (referencia 71.5; pipeline 75.7). No está en los scripts de la tesis.
+%  - Dirección: TIR sube, TAR nivel 2 baja de 6.3 a 3.2 %, CV de 38.5 a 35.2 %; el pipeline cumple
+%    tres objetivos (TBR 2, TAR 2, CV) que la referencia no cumple; en el 559 el GMI cruza el 7 %
+%    (7.11 -> 6.96 y 6.98).
+%  - Magnitud: 5 puntos de TIR (consenso, Battelino 2019) como ESCALA, no como criterio; es el
+%    valor para efectos de tratamiento y aquí se extrapola.
+%  - Hipoglucemia: caso 540 con sigma = 15; TBR nivel 1 0.2 puntos menor (unas 3 muestras).
+%  - Falsas alarmas: ya se justificó en 1.2 por qué importan; aquí solo se aplica a las cifras
+%    de Ohio (sustituyen una lectura válida; 9.7 por día).
+%  - Sorensen: indicadores saturados; solo CV y GMI discriminan (4.6.1).
+%  - Con sigma = 15 los indicadores casi no cambian (4.6.2).
+ 
+\section{Limitaciones}
+\label{sec:disc_limitaciones}
+% Un párrafo corto o dos. Sin repetir 1.6. Puntos:
+%  - Tres pacientes y una sola colocación de fallos; con las desconexiones sin excursiones el
+%    cociente con el LOCF baja de 2.4 a 1.2-1.3 y el dTIR a +0.6 y +1.0 (corrida típica).
+%  - Fallos sintéticos sobre una referencia que es la lectura del propio sensor.
+%  - Ventanas de 5 días; el consenso pide al menos 14 para interpretar TIR: los indicadores
+%    comparan escenarios, no estiman el control del paciente.
+%  - Modelos entrenados solo con datos sintéticos y sin ajuste; las cinco redes comparten datos.
+%  - gamma elegido sobre el mismo conjunto sintético que evalúa el Capítulo 4; Ohio es la
+%    verificación fuera de muestra.
+%  - Los 5 puntos de TIR del consenso son para efectos de tratamiento.
+% NO entra: costo computacional (no se midió; la implementación embebida está fuera de alcance, 1.6).
 
 % =================================================
 % CAPÍTULO 6. CONCLUSIONES
