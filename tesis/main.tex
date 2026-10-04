@@ -1909,6 +1909,8 @@ Esas falsas alarmas no se reparten por igual entre los rangos de glucosa (Tabla~
  
 La interpretación de estas cifras, en particular la del ruido y la de las falsas alarmas por encima de 250~mg/dL, se retoma en el Capítulo~\ref{cap:discusion}. El recall de ruido con una perturbación mayor se mide en la Sección~\ref{subsec:ohio_sensibilidad}.
 
+El artículo del que parte este trabajo~\cite{sanchez2025imputation} validó la CNN-LSTM en un solo paciente de OhioT1DM, después de reentrenarla con un tramo limpio de la señal de ese mismo paciente. Aquí los modelos entrenados con Sorensen se aplican sin reentrenar a tres pacientes distintos, por lo que las cifras de una y otra validación no son comparables.
+
 
 \subsection{Imputación}
 \label{subsec:ohio_imputacion}
@@ -1969,7 +1971,7 @@ La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. 
     \label{fig:ohio_episodios}
 \end{figure}
  
-En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el D3 de ruido, de 4.7~mg/dL en ambas configuraciones, es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
+En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el error D3 (el error de la señal final en las muestras con ruido) de 4.7~mg/dL en ambas configuraciones, es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
 
 Sin reajuste, el pipeline casi no interviene en el ruido y queda lejos de la referencia en las desconexiones largas, donde el LOCF tiene menos error en todos los intervalos de tiempo. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
  
@@ -2166,67 +2168,57 @@ Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadore
  
 \section{Detección: el compromiso entre precisión y recall del umbral adaptativo}
 \label{sec:disc_deteccion}
-% IDEA: el umbral compra precisión a cambio de no ver el ruido pequeño.
-% CUMPLE LA PROMESA de 4.5.1 («ruido y falsas alarmas por encima de 250 mg/dL»).
-%  - Precisión 1.000 en Sorensen; en Ohio 0.754 +- 0.176, FPR 3.9 +- 3.3 %, 9.7 +- 8.3 falsas
-%    alarmas por día (18.2 en el 559). Dónde caen: Tabla ohio_fpr_rangos.
-%  - Ruido: el umbral promedia 13 a 15 mg/dL y el ruido con sigma = 5.6 se aparta 4.65 mg/dL de la
-%    referencia: recall 0.189. Con sigma = 15 (12.41 mg/dL) el recall sube a 0.614 y las falsas
-%    alarmas no cambian (9.7 -> 9.9 por día); el AUC pasa de 0.892 a 0.950.
-%  - Lectura clínica: el piso de sensibilidad (~ umbral) es del orden de la tolerancia ISO 15197
-%    (10 % del umbral frente al 15 % de la norma). El ruido que no se ve es el que cae dentro de esa
-%    tolerancia.
-%  - Selección de gamma (exploratoria; recalculado offline): sin gamma hay 0.8 a 2.0 falsos
-%    positivos por corrida; con 0.05 ninguno en 20 corridas; el recall baja de 0.787 a 0.769 y a
-%    0.721 con gamma = 0, 0.05 y 0.15 (CNN-LSTM).
-%  - Choque con tau_D = 60 mg/dL con sigma = 15: 14, 8 y 5 de 325 evaluaciones lo superan
-%    (máx. 76.5 contra 30.8) y se tratan como desconexión.
+
+Con la señal simulada, el umbral adaptativo hizo lo que se esperaba de él: precisión de $1.000$ en las cuatro arquitecturas, a cambio de una caída de recall de entre $0.009$ y $0.016$ (Sección~\ref{sec:pipeline_unificado_adaptativo}). En OhioT1DM ese balance no se sostiene. La precisión baja a $0.754 \pm 0.176$ y el recall global queda en $0.681 \pm 0.106$, de modo que el sistema pierde en los dos frentes a la vez, y por motivos distintos.
+
+Todo lo que el detector deja pasar es ruido. Las desconexiones y los huecos reales se detectan por completo en los tres pacientes, mientras que el recall de ruido es de $0.189 \pm 0.083$. Con $\sigma$~=~5.6~mg/dL, la lectura ruidosa se aparta de la referencia $4.65$~mg/dL en promedio, y en esas muestras el umbral vale entre $13$ y $15$~mg/dL: el ruido mide alrededor de un tercio de lo que haría falta para cruzarlo. Al subir a $\sigma$~=~15~mg/dL la desviación llega a $12.41$~mg/dL, ya cerca del umbral, y el recall de ruido pasa a $0.614 \pm 0.030$ sin que cambien las falsas alarmas (9.7 y 9.9 por día; Tabla~\ref{tab:ohio_sens_deteccion}). Los dos resultados juntos separan los errores: las falsas alarmas no dependen del ruido inyectado, y el ruido que se escapa depende de su tamaño frente a $\tau$.
+
+La norma ISO 15197:2013 tolera en una lectura un error de $\pm 15$~mg/dL o de $\pm 15$\,\%, según el nivel de glucosa~\cite{iso15197_2013}, y con esa lógica se eligió $\beta$ (Sección~\ref{subsec:interpretacion_parametros}). Un ruido de 4 o 5~mg/dL queda dentro de esa tolerancia. Que el detector no lo señale es coherente con el criterio de diseño, aunque las etiquetas de la evaluación lo cuenten como fallo y le resten recall. Dejarlo pasar cuesta poco en mg/dL: el D3 de ruido es de $4.66$~mg/dL con GRU\,$\rightarrow$\,GRU y de $4.65$~mg/dL sin corregir, porque la salida es la propia lectura. Ese es el lado del compromiso que se paga en recall.
+
+El caso de $\sigma$~=~15~mg/dL roza además otro parámetro. El error de detección supera $\tau_{\mathrm{D}}$~=~60~mg/dL en 27 de las 975 evaluaciones de ruido (14, 8 y 5 en los pacientes 540, 559 y 596), con un máximo de $76.5$~mg/dL contra $30.8$~mg/dL con $\sigma$~=~5.6. Esas muestras se clasifican como desconexión y la salida toma la estimación del imputador sin suavizar. Son menos del 3\,\% de los casos, pero indican hasta dónde alcanza la clasificación por magnitud: con ruido de esa amplitud ya no distingue limpiamente entre un ruido grande y una desconexión.
+
+Las falsas alarmas, por su parte, no se reparten por igual entre los niveles de glucosa. Por debajo de $250$~mg/dL la tasa se mantiene entre $0.0$ y $6.0$\,\%; por encima sube a $37.1$\,\% en el 540 y a $63.3$\,\% en el 559 (Tabla~\ref{tab:ohio_fpr_rangos}). Si se combinan esas tasas con el número de muestras limpias de cada rango, tres de cada cuatro falsas alarmas del 559 y cerca de cuatro de cada diez del 540 caen sobre ese nivel. El umbral allí no es estrecho: a $250$~mg/dL vale $25$~mg/dL antes de sumar el término de tasa de cambio, de modo que lo señalado son errores de predicción mayores que eso en muestras limpias. Los modelos se entrenaron con una señal simulada que nunca sale del rango $70$--$180$~mg/dL (Sección~\ref{subsec:clinico_sorensen}), y parece razonable que su predicción se degrade en excursiones que no vieron. Es una explicación plausible, no probada: comprobarla requeriría reentrenar con glucosa alta, y la evidencia actual se reduce a 156 muestras limpias sobre $250$~mg/dL en dos pacientes (el 540 y el 559).
+
+Queda la duda de si convendría mover $\beta$ o $\tau_{\min}$ a la vista de Ohio. Con tres pacientes y una sola colocación de fallos, ajustarlos ahí significaría ajustar y evaluar sobre las mismas muestras, justo lo que la validación externa buscaba evitar, y por eso los parámetros se dejaron como estaban.
  
 \section{Imputación: de los datos simulados a los reales}
 \label{sec:disc_imputacion}
-% (SECCIÓN NUEVA: el hallazgo más grande de Ohio no tenía casa en el esqueleto anterior.)
-% IDEA: lo que funcionaba sobre Sorensen no se traslada a desconexiones largas en Ohio.
-% CUMPLE LA PROMESA de 4.5.2 («la razón de este descenso se discute en el Capítulo 5»).
-%  - D1: 2.92 -> 11.39 (GRU->GRU); 3.55 de la persistencia (tesis, Tabla ohio_imputacion).
-%  - Desconexiones: D3 126.90 y 130.07 contra 53.95 del LOCF (razón 2.4; 1.2 a 1.3 en la corrida típica con desconexiones sin glucosa >250). Sesgo -117 mg/dL: la salida está en 96 a 127 mg/dL
-%    mientras la referencia promedia 212, 202 y 259; correlación dentro de la desconexión -0.14,
-%    -0.51 y 0.05. Coherente con un regreso hacia el rango de Sorensen (media 98 mg/dL), no probado.
-%  - La ventaja de 1D-CNN en Sorensen (5.4 contra 14.3 mg/dL; LOCF 13.8) no aparece en Ohio.
-%  - Ruido: D3 = nivel del ruido; el pipeline queda como la lectura sin corregir (4.66 y 4.65).
-%    Con sigma = 15: 13.2 y 12.3 contra 12.4 sin corregir; mejora en 559 y 596 (8.4 y 8.9 contra 11.0 y 13.0), empeora en 540 (22.4 contra 13.2).
-%  - Suavizado: mediana de alfa 0.02-0.04 -> 0.003-0.006; salida plana. Caso 540 (sigma = 15): la referencia baja de 141 a 47 mg/dL y la salida queda en 138-142; 1 de 5 muestras <70 contra 4.
-%  - Límite de interpretación: modelos congelados, entrenados solo con Sorensen; una colocación.
+
+En Sorensen, la reconstrucción de GRU\,$\rightarrow$\,1D-CNN tenía menos error que el LOCF, que consiste en mantener la última lectura válida, sobre las muestras con fallo: $5.4$~mg/dL contra $13.8$~mg/dL. En Ohio esa ventaja no existe, y el error grande está en las desconexiones.
+
+El primer indicio es el error de predicción del imputador sobre todas las muestras (D1). En Sorensen era de $2.92$~mg/dL con GRU\,$\rightarrow$\,GRU y de $3.00$~mg/dL con GRU\,$\rightarrow$\,1D-CNN; en Ohio sube a $11.39 \pm 1.43$ y $14.81 \pm 1.22$~mg/dL, entre tres y cuatro veces el error de la persistencia, que repite la lectura anterior y sirve de comparación mínima ($3.55 \pm 0.84$~mg/dL; Tabla~\ref{tab:ohio_imputacion}). Cerca de la mitad sale de las 70 muestras de desconexión inyectadas en cada paciente (dos tramos de $4.2$ y $1.7$~h), alrededor del 5\,\% del total. Sin ellas, D1 baja a $5.3$ y $8.7$~mg/dL, entre 1.5 y 2.5 veces la persistencia en esas mismas muestras ($3.51$~mg/dL).
+
+Dentro de las desconexiones, la reconstrucción queda por detrás del LOCF en todos los intervalos medidos. El error de la señal final en esas muestras (D3) es de $126.90 \pm 14.16$~mg/dL con GRU\,$\rightarrow$\,GRU y de $130.07 \pm 14.94$~mg/dL con GRU\,$\rightarrow$\,1D-CNN, contra $53.95 \pm 8.76$~mg/dL del LOCF; ya en los primeros 30~min la red tiene $40$ y $54$~mg/dL contra $26$ (Tabla~\ref{tab:ohio_error_tiempo}). En los tres episodios de $4.2$~h la glucosa sube hasta $322$, $292$ y $310$~mg/dL y la salida, que parte de la última lectura válida, baja (Figura~\ref{fig:ohio_episodios}): queda en promedio $117$~mg/dL por debajo de la referencia ($113$~mg/dL con GRU\,$\rightarrow$\,1D-CNN). Con glucosa baja ocurre lo contrario. En las desconexiones cortas del 540 y del 559 la referencia está entre $40$ y $73$~mg/dL y la salida queda por encima; en el 540 no baja de $62$~mg/dL. En los seis episodios, la media de la salida está entre $81$ y $135$~mg/dL aunque la referencia va de $40$ a $322$~mg/dL. La red no sigue el nivel real de glucosa durante una desconexión, a pesar de que sigue recibiendo la insulina y los carbohidratos registrados.
+
+Una explicación posible es que, sin lecturas que la sostengan, la predicción vuelve hacia los valores con los que se entrenó la red: la señal de Sorensen promedia $98.1$~mg/dL y nunca sale de $70$--$180$~mg/dL (Sección~\ref{subsec:clinico_sorensen}), y GRU\,$\rightarrow$\,1D-CNN se estabiliza cerca de $100$~mg/dL en las desconexiones largas. Que el error aparezca por arriba y por abajo, y con las dos configuraciones, apunta más a los datos de entrenamiento que a la arquitectura. En D3 las dos son casi iguales, tanto en desconexiones como en ruido, y en D1 gana GRU\,$\rightarrow$\,GRU en los tres pacientes. La ventaja de GRU\,$\rightarrow$\,1D-CNN en Sorensen (mejor RMSE, $3.82$~mg/dL, y mejor D3) no se confirma. La explicación no se probó; haría falta repetir el experimento con redes entrenadas con glucosa más alta.
+
+Dónde caen las desconexiones influye, pero no lo explica todo. En una corrida previa, que no aparece en el Capítulo~\ref{cap:resultados}, las dos desconexiones se pusieron en tramos de glucosa normal (ninguna muestra con falla pasó de $250$~mg/dL). D3 fue de $44.37 \pm 19.03$~mg/dL con GRU\,$\rightarrow$\,GRU y de $41.56 \pm 18.13$~mg/dL con GRU\,$\rightarrow$\,1D-CNN, contra $33.66 \pm 5.08$~mg/dL del LOCF. El error de la red bajó de $2.4$ veces el del LOCF a $1.3$ y $1.2$ veces, y aun así el LOCF siguió ganando en promedio, aunque por poco frente a la variación entre pacientes. El artículo del grupo menciona un respaldo con LOCF entre sus mecanismos de seguridad~\cite{sanchez2025imputation}; en las dos colocaciones probadas aquí, ese respaldo habría tenido menos error que la reconstrucción.
+
+El ruido, el otro tipo de fallo con referencia, se comporta distinto: el pipeline casi no lo corrige. Con $\sigma$~=~5.6~mg/dL el detector deja pasar la mayor parte de las ráfagas (Sección~\ref{sec:disc_deteccion}) y la salida es la propia lectura. Con $\sigma$~=~15~mg/dL la salida queda, en promedio, tan lejos de la referencia como la lectura ($13.22$ y $12.33$~mg/dL contra $12.41$~mg/dL), y el efecto depende del paciente: la salida mejora la lectura en el 559 y el 596, y la empeora en el 540 ($22.38$ contra $13.20$~mg/dL con GRU\,$\rightarrow$\,GRU).
+
+Lo del 540 parece venir del suavizado. Cuando el detector marca una muestra de ruido, la salida mezcla la predicción de la red con la salida anterior, y el peso de la predicción es $\alpha = 1/(1 + \mathrm{Var})$, con $\mathrm{Var}$ la varianza de los errores de detección de las 30 muestras previas (Ecuación~\ref{eq:alpha_adaptativo}); si esos errores varían mucho, $\alpha$ tiende a 0 y la salida repite la anterior. Con $\sigma$~=~15~mg/dL el detector marca mucho más ruido (recall de ruido de $0.61$ contra $0.19$) y la mediana de $\alpha$ cae de $0.02$--$0.04$ a $0.003$--$0.006$, de modo que la salida de las muestras marcadas casi no se mueve. En una ráfaga del 540 la referencia baja de $141$ a $47$~mg/dL y la salida se queda entre $138$ y $142$~mg/dL; de las 5 muestras con referencia bajo $70$~mg/dL, la salida cae bajo ese nivel en una, contra cuatro con $\sigma$~=~5.6~mg/dL. El suavizado se definió con una señal simulada mucho más regular que la real (desviación estándar de $16$ contra $55$~mg/dL), y con un paciente y una colocación de fallos no hay forma de saber si el 540 es un caso aislado.
  
 \section{Implicaciones clínicas}
 \label{sec:disc_clinicas}
-% IDEA: el error de la imputación tiene una dirección, y es la que parece mejor control.
-% CUMPLE LA PROMESA de 4.6.2 («su discusión se retoma en el Capítulo 5»).
-%  - El cambio se concentra en las desconexiones: restituyendo la referencia solo ahí, el TIR
-%    vuelve a 71.6 % (referencia 71.5; pipeline 75.7). No está en los scripts de la tesis.
-%  - Dirección: TIR sube, TAR nivel 2 baja de 6.3 a 3.2 %, CV de 38.5 a 35.2 %; el pipeline cumple
-%    tres objetivos (TBR 2, TAR 2, CV) que la referencia no cumple; en el 559 el GMI cruza el 7 %
-%    (7.11 -> 6.96 y 6.98).
-%  - Magnitud: 5 puntos de TIR (consenso, Battelino 2019) como ESCALA, no como criterio; es el
-%    valor para efectos de tratamiento y aquí se extrapola.
-%  - Hipoglucemia: caso 540 con sigma = 15; TBR nivel 1 0.2 puntos menor (unas 3 muestras).
-%  - Falsas alarmas: ya se justificó en 1.2 por qué importan; aquí solo se aplica a las cifras
-%    de Ohio (sustituyen una lectura válida; 9.7 por día).
-%  - Sorensen: indicadores saturados; solo CV y GMI discriminan (4.6.1).
-%  - Con sigma = 15 los indicadores casi no cambian (4.6.2).
- 
+
+El criterio de la Sección~\ref{subsec:metricas_clinicas} pide que el pipeline minimice la diferencia con la referencia en el tiempo en rango (TIR), el coeficiente de variación (CV) y el indicador de manejo de glucosa (GMI). Con Ohio no se cumple. El pipeline queda más lejos de la referencia que la señal sin imputar y, en TIR y GMI, que el LOCF: el TIR sube $4.2$ y $4.9$ puntos, contra $2.5$ de la señal sin imputar y $0.5$ del LOCF, y el GMI baja $0.15$, contra $0.08$ y $0.05$. En CV, GRU\,$\rightarrow$\,GRU empata con el LOCF ($-3.3$ puntos) y GRU\,$\rightarrow$\,1D-CNN queda algo más lejos ($-3.7$); la señal sin imputar está en $-2.9$. Sobre Sorensen esta comparación no era posible: la glucosa simulada nunca sale de $70$--$180$~mg/dL, de modo que el TIR queda en $100$\,\% y el tiempo sobre y bajo rango en $0$\,\% (Sección~\ref{subsec:clinico_sorensen}).
+
+Las diferencias tienen el mismo signo: el pipeline hace que el control parezca mejor de lo que es. Como escala, el consenso asocia cada aumento de 5 puntos de TIR con un beneficio clínico~\cite{battelino2019}; esa cifra se refiere a efectos de tratamiento y aquí solo orienta sobre el tamaño, y $4.2$ a $4.9$ puntos quedan cerca. El origen está en las desconexiones. Si en cada paciente solo esas 70 muestras se sustituyen por la referencia, el TIR queda en $71.6$ y $71.7$\,\%, contra $71.5$\,\% de la referencia y $75.7$ y $76.4$\,\% del pipeline; las falsas alarmas (9.7 por día, alrededor del 3\,\% de las lecturas) y el ruido mueven el TIR menos de $0.2$ puntos. La dirección viene del sesgo de la Sección~\ref{sec:disc_imputacion}: de las 111 muestras de desconexión con referencia sobre $250$~mg/dL (36 a 38 por paciente), la salida deja dentro de $70$--$180$~mg/dL al 94\,\% con GRU\,$\rightarrow$\,GRU y a todas con GRU\,$\rightarrow$\,1D-CNN.
+
+Con la referencia, el sensor incumple cuatro objetivos del consenso: el tiempo bajo $70$~mg/dL (TBR nivel 1), el tiempo bajo $54$~mg/dL (TBR nivel 2), el tiempo sobre $250$~mg/dL (TAR nivel 2) y el CV (Tabla~\ref{tab:clinico_ohio}). El pipeline cumple tres de ellos: lleva el TAR nivel 2 de $6.3$ a $3.2$\,\% (objetivo: menos de $5$\,\%), el CV de $38.5$ a $35.2$ y $34.8$\,\% (objetivo: $36$\,\% o menos) y el TBR nivel 2 por debajo de $1$\,\%. Además baja el GMI del 559 de $7.11$ a $6.96$ y $6.98$\,\%, por debajo del $7$\,\% que la referencia supera. Quien leyera el informe del pipeline vería un control que el registro del sensor no muestra. Depende de dónde caen las desconexiones. En la corrida previa, con las desconexiones en glucosa normal, el TIR sube $0.6$ y $1.0$ puntos y los tres objetivos siguen incumplidos, como en la referencia: TBR nivel 2 en $1.1$\,\%, TAR nivel 2 en $5.6$ y $5.7$\,\% y CV en $38.3$ y $37.9$\,\%. Unas 70 muestras por paciente, alrededor del 5\,\% de la ventana, cambian el informe si caen sobre excursiones y casi no lo cambian si caen en rango normal.
+
+La hipoglucemia es el lado más delicado. El 540 pasa $3.8$\,\% del tiempo bajo $54$~mg/dL (51 muestras); 19 de ellas caen en su desconexión corta, y en ninguna la salida baja de ese nivel. Su TBR nivel 2 pasa a $2.1$\,\% con las dos configuraciones, y descartar esas muestras da $2.5$\,\%: el pipeline no subestima peor que dejar el hueco, pero tampoco lo corrige. Con el umbral de $70$~mg/dL, de las 35 muestras de desconexión con referencia por debajo (20 del 540 y 15 del 559) la salida queda bajo ese nivel en unas 10 con GRU\,$\rightarrow$\,GRU y en 2 con GRU\,$\rightarrow$\,1D-CNN. Una alerta de hipoglucemia basada en esa salida no habría sonado en la mayoría de ellas. Es coherente con den Braber et al., para quienes las métricas de hipoglucemia son las primeras en degradarse cuando faltan datos~\cite{denbraber2024}.
+
+Lo que el pipeline sí evita es contar los ceros de una desconexión como hipoglucemia: su TBR nivel 2 ($0.7$\,\%) queda por debajo del de la referencia ($1.3$\,\%), y con $\sigma$~=~15~mg/dL los indicadores cambian menos de $0.1$ puntos. Para informes retrospectivos, en cambio, rellenar con esta red desconexiones largas que caen sobre excursiones distorsiona más que dejar el hueco, y más que el LOCF en TIR y GMI. Marcar las muestras imputadas permitiría calcular los indicadores con y sin ellas. Cuánto de esto se sostiene fuera de tres pacientes y de ventanas de 5 días se discute en la Sección~\ref{sec:disc_limitaciones}.
+
 \section{Limitaciones}
 \label{sec:disc_limitaciones}
-% Un párrafo corto o dos. Sin repetir 1.6. Puntos:
-%  - Tres pacientes y una sola colocación de fallos; con las desconexiones sin excursiones el
-%    cociente con el LOCF baja de 2.4 a 1.2-1.3 y el dTIR a +0.6 y +1.0 (corrida típica).
-%  - Fallos sintéticos sobre una referencia que es la lectura del propio sensor.
-%  - Ventanas de 5 días; el consenso pide al menos 14 para interpretar TIR: los indicadores
-%    comparan escenarios, no estiman el control del paciente.
-%  - Modelos entrenados solo con datos sintéticos y sin ajuste; las cinco redes comparten datos.
-%  - gamma elegido sobre el mismo conjunto sintético que evalúa el Capítulo 4; Ohio es la
-%    verificación fuera de muestra.
-%  - Los 5 puntos de TIR del consenso son para efectos de tratamiento.
-% NO entra: costo computacional (no se midió; la implementación embebida está fuera de alcance, 1.6).
+
+Los resultados de Ohio salen de tres pacientes, con ventanas de 5 días elegidas por tener pocos huecos y con una sola colocación de los fallos por ventana, cuyos rangos se fijaron a mano. Esa colocación, con las desconexiones sobre excursiones, es la más exigente de las dos que se probaron. La corrida previa (Secciones~\ref{sec:disc_imputacion} y~\ref{sec:disc_clinicas}) cambió la magnitud de las diferencias con el LOCF y con la referencia y, en los indicadores clínicos, también el veredicto sobre los objetivos. No hay base para decir cuál de las dos se parece más al uso real, porque no se sabe con qué frecuencia caen las desconexiones sobre excursiones. Con tres pacientes, además, la desviación estándar describe la dispersión entre ellos y no permite construir intervalos de confianza. Lo que se puede sostener es la dirección de los resultados y su orden de magnitud.
+
+Los modelos llegaron a Ohio entrenados solo con la señal simulada y sin ajuste. Ohio muestra, entonces, lo que da ese entrenamiento, no lo que darían las mismas arquitecturas con glucosa real. El regreso hacia el rango de Sorensen (Sección~\ref{sec:disc_imputacion}) y los falsos positivos sobre $250$~mg/dL (Sección~\ref{sec:disc_deteccion}) pueden ser límites del entrenamiento y no del método, y estos experimentos no permiten separarlos. Ninguna de las dos explicaciones se probó; hacerlo exigiría reentrenar con glucosa más alta. Las cinco redes de cada arquitectura comparten los datos de entrenamiento y difieren solo en la semilla, de modo que su coincidencia tampoco sirve como confirmación independiente. Con $\gamma$, el peso que da el umbral a la velocidad de cambio de la glucosa, pasa algo parecido: se eligió sobre el mismo conjunto simulado con el que se evalúa el Capítulo~\ref{cap:resultados}, así que la precisión de $1.000$ en Sorensen no es del todo una medida fuera de muestra, y Ohio es la primera que sí lo es.
+
+Los indicadores clínicos se calcularon sobre ventanas de 5 días, y el consenso pide al menos 14 para interpretar el TIR~\cite{battelino2019}. Sirven para comparar escenarios sobre la misma ventana (referencia, señal sin imputar, LOCF y pipeline), no para estimar el control glucémico de cada paciente. A estas limitaciones se suman las de la Sección~\ref{sec:alcances_limitaciones}, que siguen vigentes: la referencia es la lectura del propio sensor y los fallos son sintéticos.
 
 % =================================================
 % CAPÍTULO 6. CONCLUSIONES
