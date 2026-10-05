@@ -89,29 +89,50 @@ DIRECTOR DE TESIS\\
 \vspace{0.25cm}
 CO-DIRECTOR DE TESIS\\
 \vspace{0.25cm}
-{\large \textbf{Dr. Alma Yolanda Alanís García}}\\
+{\large \textbf{Dra. Alma Yolanda Alanís García}}\\
 
 \vspace{0.25cm}
 \vspace{0.5cm}
-\large {Guadalajara, Jalisco, 20 de Marzo del 2026} \vspace{1cm} \\
+\large {Guadalajara, Jalisco, 04 de Octubre del 2026} \vspace{1cm} \\
 \begin{tabular}{p{4cm}p{8cm}}
 \end{tabular}
 \end{center}
 
 \newpage
 
+\chapter*{Agradecimientos}
+
+...
 
 \newpage
 
 \chapter*{Resumen}
-Aquí va el resumen de la tesis.
+\addcontentsline{toc}{chapter}{Resumen}
+
+Los sensores de monitoreo continuo de glucosa (CGM) pueden sufrir interrupciones en la transmisión que duran desde unos minutos hasta varias horas, o reportar lecturas con ruido. Cuando estos fallos pasan inadvertidos, afectan las decisiones de tratamiento en la diabetes tipo 1 y también los indicadores clínicos que se calculan con el registro. Esta tesis extiende un artículo publicado por el grupo de investigación, en el que una red neuronal predice la glucosa a partir de su historial, la insulina administrada y los carbohidratos ingeridos; si la lectura del sensor se aleja de la predicción más de un umbral, se marca como fallo y se reemplaza por la estimación de la red.
+
+Sobre ese sistema se hicieron tres extensiones. El umbral fijo de 10~mg/dL se sustituyó por uno que se ajusta a la glucosa predicha y a su velocidad de cambio. Después, la detección y la imputación se separaron en dos redes, y con las cuatro arquitecturas del trabajo previo (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) se evaluaron las dieciséis combinaciones entre detector e imputador sobre datos simulados con el modelo de Sorensen. Las dos mejores configuraciones se aplicaron, sin reentrenar, a tres pacientes del conjunto OhioT1DM, en cuyos registros se inyectaron fallos sintéticos para que la lectura original sirviera de referencia al medir el error de imputación y los indicadores clínicos que propone el consenso internacional de 2019 sobre el tiempo en rango.
+
+Con los datos simulados, el umbral adaptativo eliminó los falsos positivos en las cuatro arquitecturas (precisión de 1.000) a cambio de perder, como máximo, 0.016 de recall. El F1 dependió solo del detector, y el error de imputación, solo del imputador. Las dos configuraciones co-óptimas usan la GRU como detector (F1 = 0.884): GRU\,$\rightarrow$\,GRU tiene el menor error medio absoluto (2.92~mg/dL) y GRU\,$\rightarrow$\,1D-CNN, el menor RMSE (3.82~mg/dL).
+
+En OhioT1DM se detectaron todas las desconexiones inyectadas y todos los huecos reales del sensor, pero el F1 bajó a $0.702 \pm 0.087$. El umbral dejó pasar la mayor parte del ruido de baja amplitud y produjo falsas alarmas por encima de 250~mg/dL, un nivel que la señal de entrenamiento nunca alcanza. Dentro de las desconexiones, mantener la última lectura válida tuvo menos error que la reconstrucción de la red (54 contra 127~mg/dL). Cuando las desconexiones cayeron sobre excursiones de glucosa, la señal reconstruida subió el tiempo en rango entre 4.2 y 4.9 puntos respecto a la referencia, de modo que el informe mostraba un control mejor que el registrado por el sensor. La detección de desconexiones se mantuvo en datos reales, pero la reconstrucción de las más largas no alcanzó la exactitud que tuvo en simulación. Una explicación posible es que la glucosa real salió del rango visto durante el entrenamiento, aunque esta tesis no llegó a comprobarlo.
+
+\vspace{0.5cm}
+\noindent\textbf{Palabras clave:} monitoreo continuo de glucosa, detección de fallos, imputación en línea, redes neuronales profundas, umbral adaptativo, OhioT1DM.
 
 \chapter*{Abstract}
-One of the main challenges when working with time series captured online using sensors is the appearance of noise or null values, generally caused by sensor failures or temporary disconnections. These errors compromise data reliability and can lead to incorrect decisions. Particularly in the treatment of diabetes mellitus, where medical decisions depend on continuous glucose monitoring (CGM) systems provided by modern sensors, the presence of corrupted data can pose a significant risk to patient health. This work presents an approach that encompasses online detection and imputation of anomalous data using physiological inputs (insulin and carbohydrate intake), which enables decision-making in automatic glucose monitoring systems or for glucose control purposes. Four deep neural network architectures are proposed: CNN-LSTM, GRU, 1D-CNN, and Transformer-LSTM, under a controlled fault injection protocol and compared with the ARIMA model and the Temporal Convolutional Network (TCN). The obtained performance is compared using regression (MAE, RMSE, MARD) and classification (accuracy, precision, recall, F1-score, AUC) metrics. Results show that the CNN-LSTM network is the most effective for fault detection, achieving an F1-score of 0.876 and an accuracy of 0.979. Regarding data imputation, the 1D-CNN network obtained the best performance, with an MAE of 2.96 mg/dL and an RMSE of 3.75 mg/dL. Then, validation on the OhioT1DM dataset, containing real CGM data with natural sensor disconnections, showed that the CNN–LSTM model accurately detected anomalies and reliably imputed missing glucose segments under real-world conditions.
-
-% Para que estos capítulos sin número aparezcan en el índice:
-\addcontentsline{toc}{chapter}{Resumen}
 \addcontentsline{toc}{chapter}{Abstract}
+
+Continuous glucose monitoring (CGM) sensors can experience transmission interruptions lasting from a few minutes to several hours, or report noisy readings. When these faults go unnoticed, they affect treatment decisions in type 1 diabetes as well as the clinical indicators computed from the record. This thesis extends a system previously published by our research group, in which a neural network predicts glucose from its recent history, insulin delivery and carbohydrate intake; a sensor reading that departs from the prediction by more than a threshold is flagged as a fault and replaced by the network's estimate.
+
+Three extensions were made to that system. The fixed 10~mg/dL threshold was replaced by one that adapts to predicted glucose and to its rate of change. Detection and imputation were then split into two networks, and the sixteen detector--imputer combinations of the four architectures from the previous work (CNN-LSTM, GRU, 1D-CNN and Transformer-LSTM) were evaluated on data simulated with the Sorensen model. The two best configurations were applied, without retraining, to three patients from the OhioT1DM dataset. Synthetic faults were injected into their records so that the original readings could serve as a reference for both the imputation error and the clinical indicators proposed by the 2019 International Consensus on Time in Range.
+
+On simulated data, the adaptive threshold removed false positives in all four architectures (precision of 1.000) at a cost of at most 0.016 in recall. The F1-score depended only on the detector, and the imputation error only on the imputer. Both co-optimal configurations use the GRU as detector (F1 = 0.884): GRU\,$\rightarrow$\,GRU gives the lowest mean absolute error (2.92~mg/dL) and GRU\,$\rightarrow$\,1D-CNN the lowest RMSE (3.82~mg/dL).
+
+On OhioT1DM, every injected disconnection and every real sensor gap was detected, but the F1-score dropped to $0.702 \pm 0.087$. Most low-amplitude noise went undetected, and false alarms appeared above 250~mg/dL, a level the training signal never reaches. Within disconnections, holding the last valid reading produced a lower error than the network's reconstruction (54 vs.\ 127~mg/dL). When disconnections fell on glucose excursions, the reconstructed signal raised time in range by 4.2 to 4.9 percentage points above the reference, so the resulting report showed better glycemic control than the sensor had recorded. Disconnection detection held up on real data, but reconstruction of the longest disconnections did not reach the accuracy achieved in simulation. One possible explanation is that real glucose left the range seen during training, although this thesis did not test it.
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} continuous glucose monitoring, fault detection, online imputation, deep neural networks, adaptive threshold, OhioT1DM.
 
 % ----------------- ÍNDICE AUTOMÁTICO ------------
 \tableofcontents
@@ -138,7 +159,7 @@ Frente al problema descrito en la Sección~\ref{sec:contexto_general}, la litera
 
 Primero, la decisión de marcar una lectura como fallo se apoya en un umbral fijo de 10~mg/dL, idéntico para cualquier nivel de glucosa y cualquier velocidad de cambio de la señal. Un umbral constante no distingue, sin embargo, dos fuentes de variación bien documentadas: la norma ISO 15197~\cite{iso15197_2013} establece tolerancias distintas para la hipoglucemia y para el resto del rango glucémico, y las predicciones de la red se degradan de forma transitoria durante una excursión posprandial rápida, exista o no un fallo real del sensor. Segundo, la misma arquitectura que genera la predicción usada para detectar el fallo produce también el valor de reemplazo cuando este ocurre, aunque detectar y reconstruir sean tareas de naturaleza distinta —clasificación en un caso, regresión en el otro— que no necesariamente favorecen a la misma red. La validación sobre datos clínicos reales, en tercer lugar, se limitó a un único paciente del conjunto OhioT1DM y se reportó solo en términos de métricas de clasificación, sin conectar los resultados con los indicadores clínicos estandarizados que en la práctica determinan si un sistema de este tipo es útil para el manejo de la diabetes.
 
-Estas limitaciones acotan el problema que esta tesis aborda: establecer si el esquema de detección e imputación en línea puede extenderse en tres direcciones —dotar al umbral de decisión de una dependencia explícita del contexto glucémico, separar la detección y la imputación en arquitecturas seleccionadas de forma independiente para cada tarea, y ampliar la validación sobre datos reales hasta un punto en el que sea posible reportar indicadores clínicos estandarizados— sin sacrificar el desempeño ya demostrado por el sistema del que parte. Los Capítulos 3 y 4 desarrollan y evalúan, respectivamente, la propuesta y sus resultados.
+Estas limitaciones acotan el problema que esta tesis aborda: establecer si el esquema de detección e imputación en línea puede extenderse en tres direcciones —dotar al umbral de decisión de una dependencia explícita del contexto glucémico, separar la detección y la imputación en arquitecturas seleccionadas de forma independiente para cada tarea, y ampliar la validación sobre datos reales hasta un punto en el que sea posible reportar indicadores clínicos estandarizados— sin sacrificar el desempeño ya demostrado por el sistema del que parte. La propuesta se describe en el Capítulo~\ref{cap:metodologia} y se evalúa en el Capítulo~\ref{cap:resultados}; la discusión de los resultados y las conclusiones ocupan los Capítulos~\ref{cap:discusion} y~\ref{cap:conclusiones}.
 
 
 \section{Justificación}
@@ -372,6 +393,7 @@ En el artículo señalamos el umbral fijo como una limitación reconocida, y pro
 % CAPÍTULO 3. METODOLOGÍA
 % =================================================
 \chapter{Metodología}
+\label{cap:metodologia}
 
 \section{Visión general del sistema}
 \label{sec:vision_general_sistema}
@@ -400,7 +422,7 @@ En consecuencia, este trabajo emplea dos fuentes de datos complementarias. La pr
 
 \subsection{Datos sintéticos: modelo fisiológico de Sorensen}
 \label{subsec:datos_sinteticos}
-Para reproducir la dinámica glucosa--insulina--carbohidratos en un adulto con diabetes mellitus tipo 1 (DT1) se utilizó el modelo fisiológico compartimental de Sorensen~\cite{ruiz2018sorensen}. Este modelo está conformado por 19 ecuaciones diferenciales ordinarias (EDO) que representan los flujos de glucosa, insulina, glucagón y otros procesos metabólicos a través de los principales compartimentos del organismo --hígado, riñón, tejidos periféricos y región subcutánea--, capturando las interacciones fisiológicas no lineales descritas en el Apéndice~\ref{app:sorensen}.
+Para reproducir la dinámica glucosa--insulina--carbohidratos en un adulto con diabetes mellitus tipo 1 (DT1) se utilizó el modelo fisiológico compartimental de Sorensen~\cite{ruiz2018sorensen}. Este modelo está conformado por 19 ecuaciones diferenciales ordinarias (EDO) que representan los flujos de glucosa, insulina, glucagón y otros procesos metabólicos a través de los principales compartimentos del organismo: hígado, riñón, tejidos periféricos y región subcutánea, capturando así sus interacciones fisiológicas no lineales descritas en el trabajo original ~\cite{sorensen1985physiologic}.
 
 La simulación contempla absorción continua tanto para la insulina como para los carbohidratos, en lugar de impulsos instantáneos, reflejando así la dinámica biológica realista del organismo. La concentración de glucosa $G_{CGM}(t)$ representa la glucosa plasmática medida por un sensor CGM (mg/dL); la concentración de insulina $I(t)$ denota la insulina plasmática tras la administración basal y de bolos (mU/L); y la ingesta de carbohidratos $\mathit{CHO}(t)$ modela las tasas de absorción gastrointestinal (mg/min).
 
@@ -608,14 +630,14 @@ Durante la operación en línea, la ventana se actualiza de manera deslizante co
 
 Esta estructura permite la detección y la imputación punto a punto de los niveles de glucosa en tiempo real, manteniendo la robustez ante fallos del sensor o vacíos de información. La Sección~\ref{sec:arquitecturas_implementadas} describe en detalle las cuatro arquitecturas neuronales implementadas que operan sobre este esquema.
 
-\section{Arquitecturas implementadas} % (del paper, sec. 4.1)
+\section{Arquitecturas implementadas}
 \label{sec:arquitecturas_implementadas}
 
 Sobre el esquema común de preprocesamiento y ventana deslizante descrito en la Sección~\ref{sec:preprocesamiento}, este trabajo implementa cuatro arquitecturas de redes neuronales profundas con paradigmas de procesamiento complementarios: una arquitectura recurrente eficiente (GRU), una arquitectura puramente convolucional (1D-CNN), una arquitectura híbrida que combina convolución y recurrencia (CNN--LSTM) y una arquitectura híbrida que combina atención y recurrencia (Transformer--LSTM). Esta selección no es arbitraria: cada paradigma capta de manera distinta las dependencias temporales en la señal de glucosa, y comparar los cuatro permite evaluar qué tipo de inductive bias resulta más adecuado para la detección de fallos y la imputación en línea de datos de CGM.
 
-Adicionalmente, se incluyen dos modelos de comparación que sirven como referencia: un modelo estadístico clásico (ARIMA) que actúa como línea base lineal y un modelo convolucional causal de uso establecido en series temporales (TCN). Estos modelos no forman parte de las arquitecturas propuestas, pero permiten contextualizar el desempeño de los modelos profundos frente a alternativas tradicionales.
+El artículo del que parte esta tesis comparó además estas cuatro redes con un modelo ARIMA y con una red convolucional temporal (TCN)~\cite{samal2025autoTCN}, y las redes profundas tuvieron menor error en casi todas las métricas (Sección~\ref{sec:trabajo_previo_grupo}). Esa comparación no se repite aquí. Lo que evalúa esta tesis es el umbral y la forma de combinar detector e imputador entre esas mismas cuatro redes, una comparación en la que ARIMA y TCN, ya superados en el artículo, no aportan información nueva. En los datos reales sí se usan dos comparadores sin entrenamiento, la persistencia y el LOCF, descritos en la Sección~\ref{subsec:datos_reales}.
 
-A lo largo de esta sección, todas las arquitecturas reciben como entrada el vector $\mathbf{x}(k) \in \mathbb{R}^{8}$ definido en la Ecuación~\eqref{eq:ventana} y producen como salida la predicción escalar $\hat{g}(k)$ correspondiente al siguiente paso de glucosa. Las configuraciones específicas de cada arquitectura --número de unidades, filtros, tasas de \textit{dropout}-- corresponden a las empleadas en el trabajo previo del grupo de investigación~\cite{sanchez2025imputation} y se mantienen idénticas en esta tesis para garantizar que las extensiones propuestas (Capítulos~\ref{subsec:umbral_adaptativo} y~\ref{sec:pipeline_desacoplado}) se evalúen sobre una base arquitectónica comparable.
+A lo largo de esta sección, todas las arquitecturas reciben como entrada el vector $\mathbf{x}(k) \in \mathbb{R}^{8}$ definido en la Ecuación~\eqref{eq:ventana} y producen como salida la predicción escalar $\hat{g}(k)$ correspondiente al siguiente paso de glucosa. Las configuraciones específicas de cada arquitectura --número de unidades, filtros, tasas de \textit{dropout}-- corresponden a las empleadas en el trabajo previo del grupo de investigación~\cite{sanchez2025imputation} y se mantienen idénticas en esta tesis para garantizar que las extensiones propuestas (Secciones~\ref{subsec:umbral_adaptativo} y~\ref{sec:pipeline_desacoplado}) se evalúen sobre una base arquitectónica comparable.
 
 
 \subsection{Red Híbrida CNN-LSTM}
@@ -715,25 +737,6 @@ La Tabla~\ref{tab:arquitecturas} sintetiza la composición y los componentes pri
 \end{table}
 
 En términos de complejidad estructural, la arquitectura GRU es la más ligera, seguida por la 1D-CNN, mientras que CNN--LSTM y Transformer--LSTM presentan un mayor número de parámetros entrenables debido a la combinación de múltiples bloques heterogéneos. Esta diversidad de tamaños y paradigmas constituye una de las contribuciones del trabajo previo, ya que permite identificar empíricamente qué configuración resulta más conveniente según el objetivo operativo: minimizar errores grandes, minimizar el error promedio, maximizar la detección de fallos o mantener un equilibrio entre todas las métricas.
-
-\subsection{Modelos de comparación}
-\label{subsec:baselines}
-
-Con el fin de contextualizar el desempeño de las arquitecturas profundas frente a estrategias de modelado tradicionales, se implementaron dos modelos adicionales que sirven como línea base. Estos modelos no forman parte de las arquitecturas propuestas, pero su inclusión permite cuantificar la ganancia que aportan los modelos profundos respecto a alternativas más simples o establecidas.
-
-\subsubsection{Modelo ARIMA como línea base estadística}
-
-El modelo \textit{Autoregressive Integrated Moving Average} (ARIMA) constituye una de las técnicas clásicas más utilizadas para el modelado de series temporales univariadas. Un modelo ARIMA$(p, d, q)$ combina tres componentes: un término autorregresivo de orden $p$ que expresa la dependencia con valores pasados, un grado de diferenciación $d$ que estabiliza la media de la serie, y un término de media móvil de orden $q$ que modela el ruido residual. En este trabajo se selecciona la combinación de parámetros $(p, d, q)$ que minimiza el error cuadrático medio (MSE) de validación a un paso, utilizando una estrategia de origen rodante (\textit{rolling-origin}) que respeta el orden temporal de los datos.
-
-ARIMA opera como un modelo determinista lineal y, a diferencia de las redes neuronales, no requiere múltiples corridas de entrenamiento ya que no posee inicialización aleatoria de parámetros. Su inclusión obedece a una doble motivación: por un lado, establecer un piso de desempeño sobre el cual deben mejorar los modelos profundos para justificar su mayor complejidad computacional; por otro, evidenciar las limitaciones de los modelos lineales para capturar la dinámica fundamentalmente no lineal de la glucosa, sometida a interacciones complejas entre la insulina, la ingesta de alimentos y los procesos metabólicos.
-
-\subsubsection{Red Convolucional Temporal (TCN)}
-
-La \textit{Temporal Convolutional Network} (TCN)~\cite{samal2025autoTCN} es una arquitectura convolucional especializada en el modelado de series temporales que incorpora dos mecanismos clave: convoluciones causales, que aseguran que la predicción en el instante $k$ dependa únicamente de información hasta $k-1$, y convoluciones dilatadas, que permiten ampliar el campo receptivo del modelo de manera exponencial sin incrementar proporcionalmente el número de parámetros. Estas características hacen que la TCN sea capaz de capturar dependencias temporales de largo plazo con una eficiencia computacional competitiva frente a las arquitecturas recurrentes.
-
-Para este trabajo, la profundidad de la arquitectura y los factores de dilatación de la TCN se optimizaron mediante una búsqueda en cuadrícula (\textit{grid search}) que balancea la exactitud predictiva y el costo computacional. La inclusión de la TCN como modelo de comparación permite contrastar las redes profundas propuestas no solamente contra una línea base lineal (ARIMA), sino también contra una alternativa convolucional moderna y bien establecida en la literatura, ofreciendo así una evaluación más rigurosa y completa de las contribuciones del enfoque propuesto.
-
-Los resultados cuantitativos obtenidos para ARIMA y TCN se reportan junto a los de las arquitecturas profundas en el Capítulo~\ref{cap:resultados}, permitiendo una comparación directa bajo condiciones experimentales idénticas.
 
 \section{Entrenamiento y validación} % (del paper, sec. 4.2)
 \label{sec:entrenamiento}
@@ -1397,17 +1400,9 @@ Tres contrastes resultan particularmente informativos: $\Delta\mathrm{TIR}$, $\D
 
 La utilidad informativa de las métricas clínicas depende críticamente de la diversidad glucémica de la señal sobre la que se calculan. Cuando la señal de referencia se concentra dentro del rango objetivo --es decir, cuando el paciente simulado exhibe un control glucémico prácticamente ideal-- las métricas TBR$_1$, TBR$_2$, TAR$_1$, TAR$_2$ son trivialmente cero, el TIR es trivialmente 100\,\%, y los indicadores de variabilidad y exposición global quedan acotados a un rango estrecho que limita las comparaciones entre configuraciones.
 
-La simulación del modelo de Sorensen utilizada en este trabajo produce una traza confinada al rango normoglucémico durante la mayor parte del horizonte, con excursiones hipo- o hiperglucémicas genuinas escasas. Sobre este conjunto, las métricas clínicas son informativas únicamente para evaluar la disponibilidad de datos, la capacidad del sistema para evitar que las desconexiones inflen artificialmente TBR$_2$, y la consistencia de CV y GMI entre configuraciones. \textit{No} permiten discriminar entre arquitecturas con desempeños técnicos próximos ni cuantificar el manejo de excursiones glucémicas genuinas.
+La señal de prueba simulada usando del modelo de Sorensen utilizada en este trabajo no sale del rango de 70 a 180~mg/dL, con o sin fallos inyectados. Sobre este conjunto, las métricas clínicas son informativas únicamente para evaluar la disponibilidad de datos, la capacidad del sistema para evitar que las desconexiones inflen artificialmente TBR$_2$, y la consistencia de CV y GMI entre configuraciones. \textit{No} permiten discriminar entre arquitecturas con desempeños técnicos próximos ni cuantificar el manejo de excursiones glucémicas genuinas.
 
 Por esta razón, las métricas clínicas se conciben en esta tesis fundamentalmente como un instrumento para la validación del sistema sobre datos reales. El conjunto OhioT1DM (Sección~\ref{subsec:datos_reales}) contiene el rango completo de excursiones glucémicas características del uso clínico ambulatorio y, por lo tanto, constituye el escenario donde estas métricas alcanzan su máxima capacidad informativa. Los resultados correspondientes a ambos contextos se reportan en el Capítulo~\ref{cap:resultados}.
-
-%% agregar 
-%% \subsection{Métricas clínicas (TIR, Lvl 1/2 hipo, hiperglucemia)}
-
-\paragraph{Autoencoders}
-
-Los Autoencoders representan una de las ramas más fascinantes del aprendizaje no supervisado, diseñados con el propósito fundamental de aprender codificaciones eficientes de datos de entrada. 
-
 
 % =================================================
 % CAPÍTULO 4. RESULTADOS
@@ -1415,7 +1410,7 @@ Los Autoencoders representan una de las ramas más fascinantes del aprendizaje n
 \chapter{Resultados}
 \label{cap:resultados}
 
-% Este capítulo va de la configuración más simple a la evaluación más cercana al uso real. Las Secciones~\ref{sec:resultados_entrenamiento} a~\ref{sec:pipeline-desacoplado} trabajan con la señal sintética de Sorensen: del entrenamiento de las cuatro arquitecturas pasan al pipeline unificado, con umbral fijo y con umbral adaptativo, y de ahí a las 16 combinaciones del pipeline desacoplado. La Sección~\ref{sec:validacion_ohio} aplica las dos configuraciones co-óptimas, sin reajuste, a tres pacientes de OhioT1DM. La Sección~\ref{sec:validacion_clinica} mide con los indicadores de control glucémico qué cambia en la señal reconstruida, primero en Sorensen y después en Ohio.
+Este capítulo va de la configuración más simple a la evaluación más cercana al uso real. Las Secciones~\ref{sec:resultados_entrenamiento} a~\ref{sec:pipeline-desacoplado} trabajan con la señal sintética de Sorensen: del entrenamiento de las cuatro arquitecturas pasan al pipeline unificado, con umbral fijo y con umbral adaptativo, y de ahí a las 16 combinaciones del pipeline desacoplado. La Sección~\ref{sec:validacion_ohio} aplica las dos configuraciones co-óptimas, sin reajuste, a tres pacientes de OhioT1DM. La Sección~\ref{sec:validacion_clinica} mide con los indicadores de control glucémico qué cambia en la señal reconstruida, primero en Sorensen y después en Ohio.
 
 % ============================================================
 %  SECCIÓN 4.1 — Resultados de entrenamiento  (versión corregida)
@@ -1644,16 +1639,6 @@ El valor $\gamma = 0.05$ (Sección~\ref{subsec:seleccion_parametros}) es el que 
 \subsection*{Balance}
 
 El umbral adaptativo elimina los falsos positivos del pipeline unificado a cambio de una pérdida pequeña de recall, y no altera el error de imputación. Con ese resultado queda adoptado como configuración estándar del resto de la tesis, incluido el pipeline desacoplado (Sección~\ref{sec:pipeline_desacoplado}).
-
-
-%\section{Resultados de imputación de las 4 arquitecturas} % (paper sec. 5.1)
-% =====================================================================
-%  Sección 4.4 — Pipeline desacoplado: análisis de las 16 combinaciones
-%  Requiere en el preámbulo: booktabs, caption (labelfont=bf),
-%  \addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
-%  Numeración de tablas automática por capítulo (Tabla 4.X).
-%  La figura fig_44_frente_pareto.eps se genera aparte (pendiente).
-% =====================================================================
 
 \section{Pipeline desacoplado: análisis de las 16 combinaciones}
 \label{sec:pipeline-desacoplado}
@@ -2067,10 +2052,10 @@ Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinica
 \textbf{Indicador} & Ref. & Sin imp. & Pipeline & Ref. & Sin imp. & Pipeline & \textbf{Objetivo} \\
 \midrule
 TIR (70--180)         & 100.0 & 100.0 & 100.0 & 100.0 & 100.0 & 100.0 & $\geq$70\% \\
-TBR L1 (<70)          & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <4\% \\
-TBR L2 (<54)          & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <1\% \\
-TAR L1 (180--250)     & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <25\% \\
-TAR L2 (>250)         & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <5\% \\
+TBR$_1$ ($<$70)       & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <4\% \\
+TBR$_2$ ($<$54)       & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <1\% \\
+TAR$_1$ (180--250)    & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <25\% \\
+TAR$_2$ ($>$250)      & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & 0.0   & <5\% \\
 Glucosa media (mg/dL) & 98.1  & 97.7  & 98.1  & 98.1  & 97.7  & 97.1  & Informativo \\
 $\sigma_g$ (mg/dL)       & 16.0  & 16.5  & 16.1  & 16.0  & 16.5  & 16.6  & Informativo \\
 CV (\%)               & 16.3  & 16.9  & 16.4  & 16.3  & 16.9  & 17.1  & $\leq$36\% \\
@@ -2100,10 +2085,10 @@ Con pacientes reales los indicadores dejan de estar saturados. Se aplican los de
 \textbf{Indicador} & Ref. & Sin imp. & GRU\,$\rightarrow$\,GRU & GRU\,$\rightarrow$\,1D-CNN & \textbf{Objetivo} \\
 \midrule
 TIR (70--180)         & 71.5 $\pm$ 8.9    & 74.0 $\pm$ 10.1   & 75.7 $\pm$ 9.2    & 76.4 $\pm$ 8.9    & $\geq$70\% \\
-TBR L1 (<70)          & 5.9 $\pm$ 5.9     & 5.5 $\pm$ 5.6     & 5.6 $\pm$ 5.6     & 5.1 $\pm$ 5.2     & <4\% \\
-TBR L2 (<54)          & 1.3 $\pm$ 2.2     & 0.8 $\pm$ 1.4     & 0.7 $\pm$ 1.2     & 0.7 $\pm$ 1.2     & <1\% \\
-TAR L1 (180--250)     & 16.3 $\pm$ 7.2    & 16.5 $\pm$ 7.9    & 15.5 $\pm$ 7.4    & 15.3 $\pm$ 7.4    & <25\% \\
-TAR L2 (>250)         & 6.3 $\pm$ 3.7     & 4.1 $\pm$ 4.1     & 3.2 $\pm$ 3.3     & 3.2 $\pm$ 3.3     & <5\% \\
+TBR$_1$ ($<$70)       & 5.9 $\pm$ 5.9     & 5.5 $\pm$ 5.6     & 5.6 $\pm$ 5.6     & 5.1 $\pm$ 5.2     & <4\% \\
+TBR$_2$ ($<$54)       & 1.3 $\pm$ 2.2     & 0.8 $\pm$ 1.4     & 0.7 $\pm$ 1.2     & 0.7 $\pm$ 1.2     & <1\% \\
+TAR$_1$ (180--250)    & 16.3 $\pm$ 7.2    & 16.5 $\pm$ 7.9    & 15.5 $\pm$ 7.4    & 15.3 $\pm$ 7.4    & <25\% \\
+TAR$_2$ ($>$250)      & 6.3 $\pm$ 3.7     & 4.1 $\pm$ 4.1     & 3.2 $\pm$ 3.3     & 3.2 $\pm$ 3.3     & <5\% \\
 Glucosa media (mg/dL) & 144.6 $\pm$ 14.2  & 141.2 $\pm$ 16.1  & 138.1 $\pm$ 14.2  & 138.4 $\pm$ 14.1  & Informativo \\
 $\sigma_g$ (mg/dL)    & 55.3 $\pm$ 8.7    & 50.0 $\pm$ 10.6   & 48.4 $\pm$ 10.1   & 47.9 $\pm$ 9.6    & Informativo \\
 CV (\%)               & 38.5 $\pm$ 7.6    & 35.6 $\pm$ 7.7    & 35.2 $\pm$ 7.8    & 34.8 $\pm$ 7.3    & $\leq$36\% \\
@@ -2112,22 +2097,22 @@ GMI (\%)              & 6.77 $\pm$ 0.34   & 6.69 $\pm$ 0.38   & 6.61 $\pm$ 0.34 
 \end{tabular}
 \end{table}
  
-La referencia ya incumple varios objetivos: el tiempo sobre 250~mg/dL promedia 6.3~$\pm$ 3.7\,\%, el CV 38.5~$\pm$ 7.6\,\% y el 540 pasa 3.8\,\% del tiempo por debajo de 54~mg/dL. Su TIR, de 71.5~$\pm$ 8.9\,\%, cumple el objetivo en promedio pero no en el 559 (62.3\,\%). Con el pipeline, el TIR sube a 75.7\,\% con GRU\,$\rightarrow$\,GRU y a 76.4\,\% con GRU\,$\rightarrow$\,1D-CNN, 4.2 y 4.9 puntos por encima de la referencia; en cada paciente la diferencia va de 4.0 a 5.1 puntos. El tiempo sobre 250~mg/dL baja a 3.2\,\%, el CV a 35.2 y 34.8\,\% y el GMI de 6.77 a 6.61 y 6.62\,\%, de modo que el pipeline cumple tres objetivos que la referencia no cumple: TBR nivel 2, TAR nivel 2 y CV.
+La referencia ya incumple varios objetivos: el tiempo sobre 250~mg/dL promedia 6.3~$\pm$ 3.7\,\%, el CV 38.5~$\pm$ 7.6\,\% y el 540 pasa 3.8\,\% del tiempo por debajo de 54~mg/dL. Su TIR, de 71.5~$\pm$ 8.9\,\%, cumple el objetivo en promedio pero no en el 559 (62.3\,\%). Con el pipeline, el TIR sube a 75.7\,\% con GRU\,$\rightarrow$\,GRU y a 76.4\,\% con GRU\,$\rightarrow$\,1D-CNN, 4.2 y 4.9 puntos por encima de la referencia; en cada paciente la diferencia va de 4.0 a 5.1 puntos. El tiempo sobre 250~mg/dL baja a 3.2\,\%, el CV a 35.2 y 34.8\,\% y el GMI de 6.77 a 6.61 y 6.62\,\%, de modo que el pipeline cumple tres objetivos que la referencia no cumple: TBR$_2$, TAR$_2$ y CV.
 
 Descartar las muestras con fallo mueve los mismos indicadores en la misma dirección, pero menos: $+$2.5 puntos de TIR, $-$2.9 de CV y $-$0.08 de GMI. En el agregado, los tres contrastes de la Sección~\ref{subsec:metricas_clinicas} quedan más lejos de la referencia con el pipeline que con la señal sin imputar. El LOCF (Sección~\ref{subsec:datos_reales}) queda a 0.5 puntos de TIR, con un CV 3.3 puntos menor y un GMI 0.05 menor.
 
-La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En el 596, el pipeline y la señal sin imputar eliminan el 2.6\,\% de tiempo sobre 250~mg/dL de la referencia. En el 559, el TAR nivel 2 baja de 10.1\,\% a 6.5\,\% y el GMI de 7.11\,\% a 6.96 y 6.98\,\%, es decir, por debajo del 7\,\% que la referencia supera. El cambio se concentra en las desconexiones (Sección~\ref{subsec:ohio_imputacion}), y su discusión se retoma en el Capítulo~\ref{cap:discusion}.
+La Figura~\ref{fig:ohio_clinico_rangos} separa los resultados por paciente. En el 596, el pipeline y la señal sin imputar eliminan el 2.6\,\% de tiempo sobre 250~mg/dL de la referencia. En el 559, el TAR$_2$ baja de 10.1\,\% a 6.5\,\% y el GMI de 7.11\,\% a 6.96 y 6.98\,\%, es decir, por debajo del 7\,\% que la referencia supera. El cambio se concentra en las desconexiones (Sección~\ref{subsec:ohio_imputacion}), y su discusión se retoma en el Capítulo~\ref{cap:discusion}.
  
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_ohio_clinico_rangos.eps}
-    \caption{Tiempo en cada rango de glucosa para la referencia, la señal sin imputar y la salida de las dos configuraciones, en los pacientes (a) 540, (b) 559 y (c) 596 de OhioT1DM, con el ruido del protocolo del artículo. El número dentro de cada barra es el TIR (\%). Las barras separan el TBR nivel 1 (54--69~mg/dL) del nivel 2 ($<$54~mg/dL); el TBR L1 de la Tabla~\ref{tab:clinico_ohio} ($<$70~mg/dL) incluye a los dos.}
+    \caption{Tiempo en cada rango de glucosa para la referencia, la señal sin imputar y la salida de las dos configuraciones, en los pacientes (a) 540, (b) 559 y (c) 596 de OhioT1DM, con el ruido del protocolo del artículo. El número dentro de cada barra es el TIR (\%). Las franjas de 54--69~mg/dL y de menos de 54~mg/dL (TBR$_2$) suman el TBR$_1$ de la Tabla~\ref{tab:clinico_ohio}; las de 181--250 y más de 250~mg/dL corresponden a TAR$_1$ y TAR$_2$.}
     \label{fig:ohio_clinico_rangos}
 \end{figure}
  
 % El LOCF (Sección~\ref{subsec:datos_reales}) queda a 0.5 puntos de TIR de la referencia, con un CV 3.3 puntos menor y un GMI 0.05 menor. Frente al pipeline, la diferencia está sobre todo en el TIR y el GMI.
  
-Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores casi no cambian. En el agregado, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01; el único cambio apreciable es el del 540, con un TBR nivel 1 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor.
+Con $\sigma$~=~15~mg/dL (Sección~\ref{subsec:ohio_sensibilidad}) los indicadores casi no cambian. En el agregado, el TIR, el TBR, el TAR y el CV de ambas configuraciones varían menos de 0.1 puntos porcentuales, la glucosa media 0.2~mg/dL y el GMI menos de 0.01; el único cambio apreciable es el del 540, con un TBR$_1$ 0.2 puntos menor (unas 3 muestras) y una media 0.6~mg/dL mayor.
  
 % =================================================
 % CAPÍTULO 5. DISCUSIÓN
@@ -2191,11 +2176,11 @@ El criterio de la Sección~\ref{subsec:metricas_clinicas} pide que el pipeline m
 
 Las diferencias tienen el mismo signo: el pipeline hace que el control parezca mejor de lo que es. Como escala, el consenso asocia cada aumento de 5 puntos de TIR en una persona con un beneficio clínico~\cite{battelino2019}. Esa cifra describe cambios reales en el control glucémico, no diferencias entre dos versiones de la misma señal, así que aquí solo orienta sobre el tamaño: $4.2$ a $4.9$ puntos quedan cerca. El origen está en las desconexiones. Si en cada paciente solo esas 70 muestras se sustituyen por la referencia, el TIR queda en $71.6$ y $71.7$\,\%, contra $71.5$\,\% de la referencia y $75.7$ y $76.4$\,\% del pipeline; las falsas alarmas (9.7 por día, alrededor del 3\,\% de las lecturas) y el ruido mueven el TIR menos de $0.2$ puntos. La dirección viene del sesgo de la Sección~\ref{sec:disc_imputacion}: de las 111 muestras de desconexión con referencia sobre $250$~mg/dL (36 a 38 por paciente), la salida deja dentro de $70$--$180$~mg/dL al 94\,\% con GRU\,$\rightarrow$\,GRU y a todas con GRU\,$\rightarrow$\,1D-CNN.
 
-Con la referencia, el sensor incumple cuatro objetivos del consenso: el tiempo bajo $70$~mg/dL (TBR nivel 1), el tiempo bajo $54$~mg/dL (TBR nivel 2), el tiempo sobre $250$~mg/dL (TAR nivel 2) y el CV (Tabla~\ref{tab:clinico_ohio}). El pipeline cumple tres de ellos: lleva el TAR nivel 2 de $6.3$ a $3.2$\,\% (objetivo: menos de $5$\,\%), el CV de $38.5$ a $35.2$ y $34.8$\,\% (objetivo: $36$\,\% o menos) y el TBR nivel 2 por debajo de $1$\,\%. Además baja el GMI del 559 de $7.11$ a $6.96$ y $6.98$\,\%, por debajo del $7$\,\% que la referencia supera. Quien leyera el informe del pipeline vería un control que el registro del sensor no muestra. Depende de dónde caen las desconexiones. En la corrida previa, con las desconexiones en glucosa normal, el TIR sube $0.6$ y $1.0$ puntos y los tres objetivos siguen incumplidos, como en la referencia: TBR nivel 2 en $1.1$\,\%, TAR nivel 2 en $5.6$ y $5.7$\,\% y CV en $38.3$ y $37.9$\,\%. Unas 70 muestras por paciente, alrededor del 5\,\% de la ventana, cambian el informe si caen sobre excursiones y casi no lo cambian si caen en rango normal.
+Con la referencia, el sensor incumple cuatro objetivos del consenso: el tiempo bajo $70$~mg/dL (TBR$_1$), el tiempo bajo $54$~mg/dL (TBR$_2$), el tiempo sobre $250$~mg/dL (TAR$_2$) y el CV (Tabla~\ref{tab:clinico_ohio}). El pipeline cumple tres de ellos: lleva el TAR$_2$ de $6.3$ a $3.2$\,\% (objetivo: menos de $5$\,\%), el CV de $38.5$ a $35.2$ y $34.8$\,\% (objetivo: $36$\,\% o menos) y el TBR$_2$ por debajo de $1$\,\%. Además baja el GMI del 559 de $7.11$ a $6.96$ y $6.98$\,\%, por debajo del $7$\,\% que la referencia supera. Quien leyera el informe del pipeline vería un control que el registro del sensor no muestra. Depende de dónde caen las desconexiones. En la corrida previa, con las desconexiones en glucosa normal, el TIR sube $0.6$ y $1.0$ puntos y los tres objetivos siguen incumplidos, como en la referencia: TBR$_2$ en $1.1$\,\%, TAR$_2$ en $5.6$ y $5.7$\,\% y CV en $38.3$ y $37.9$\,\%. Unas 70 muestras por paciente, alrededor del 5\,\% de la ventana, cambian el informe si caen sobre excursiones y casi no lo cambian si caen en rango normal.
 
-La hipoglucemia es el lado más delicado. El 540 pasa $3.8$\,\% del tiempo bajo $54$~mg/dL (51 muestras); 19 de ellas caen en su desconexión corta, y en ninguna la salida baja de ese nivel. Su TBR nivel 2 pasa a $2.1$\,\% con las dos configuraciones, y descartar esas muestras da $2.5$\,\%: el pipeline no subestima peor que dejar el hueco, pero tampoco lo corrige. Con el umbral de $70$~mg/dL, de las 35 muestras de desconexión con referencia por debajo (20 del 540 y 15 del 559) la salida queda bajo ese nivel en unas 10 con GRU\,$\rightarrow$\,GRU y en 2 con GRU\,$\rightarrow$\,1D-CNN. Una alerta de hipoglucemia basada en esa salida no habría sonado en la mayoría de ellas. Es coherente con den Braber et al., para quienes las métricas de hipoglucemia son las primeras en degradarse cuando faltan datos~\cite{denbraber2024}.
+La hipoglucemia es el lado más delicado. El 540 pasa $3.8$\,\% del tiempo bajo $54$~mg/dL (51 muestras); 19 de ellas caen en su desconexión corta, y en ninguna la salida baja de ese nivel. Su TBR$_2$ pasa a $2.1$\,\% con las dos configuraciones, y descartar esas muestras da $2.5$\,\%: el pipeline no subestima peor que dejar el hueco, pero tampoco lo corrige. Con el umbral de $70$~mg/dL, de las 35 muestras de desconexión con referencia por debajo (20 del 540 y 15 del 559) la salida queda bajo ese nivel en unas 10 con GRU\,$\rightarrow$\,GRU y en 2 con GRU\,$\rightarrow$\,1D-CNN. Una alerta de hipoglucemia basada en esa salida no habría sonado en la mayoría de ellas. Es coherente con den Braber et al., para quienes las métricas de hipoglucemia son las primeras en degradarse cuando faltan datos~\cite{denbraber2024}.
 
-Lo que el pipeline sí evita es contar los ceros de una desconexión como hipoglucemia: su TBR nivel 2 ($0.7$\,\%) queda por debajo del de la referencia ($1.3$\,\%), y con $\sigma$~=~15~mg/dL los indicadores cambian menos de $0.1$ puntos. Para informes retrospectivos, en cambio, rellenar con esta red desconexiones largas que caen sobre excursiones distorsiona más que dejar el hueco, y más que el LOCF en TIR y GMI. Marcar las muestras imputadas permitiría calcular los indicadores con y sin ellas. Cuánto de esto se sostiene fuera de tres pacientes y de ventanas de 5 días se discute en la Sección~\ref{sec:disc_limitaciones}.
+Lo que el pipeline sí evita es contar los ceros de una desconexión como hipoglucemia: su TBR$_2$ ($0.7$\,\%) queda por debajo del de la referencia ($1.3$\,\%), y con $\sigma$~=~15~mg/dL los indicadores cambian menos de $0.1$ puntos. Para informes retrospectivos, en cambio, rellenar con esta red desconexiones largas que caen sobre excursiones distorsiona más que dejar el hueco, y más que el LOCF en TIR y GMI. Marcar las muestras imputadas permitiría calcular los indicadores con y sin ellas. Cuánto de esto se sostiene fuera de tres pacientes y de ventanas de 5 días se discute en la Sección~\ref{sec:disc_limitaciones}.
 
 \section{Limitaciones}
 \label{sec:disc_limitaciones}
@@ -2223,16 +2208,16 @@ En los tres pacientes de OhioT1DM, los modelos aplicados sin reentrenar detectar
  
 La validación clínica mostró algo que las métricas de error no dejan ver. Cuando las desconexiones cayeron sobre excursiones de glucosa, la señal reconstruida acercó esos tramos al rango normal y el tiempo en rango subió entre 4 y 5 puntos respecto a la referencia, cerca de la diferencia que el consenso internacional considera clínicamente relevante en una persona~\cite{battelino2019}. Un imputador puede cambiar así la lectura clínica de un registro, y hacerlo en el sentido que más puede confundir: un control que parece mejor de lo que fue. Si un imputador de CGM se evalúa solo con MAE o RMSE, ese efecto queda fuera de la evaluación.
  
-En cuanto a la hipótesis (Sección~\ref{sec:hipotesis}), su primera parte se sostiene en datos simulados, con la salvedad de que la reconstrucción mejora en RMSE y no en error medio absoluto. De la segunda solo se cumple la detección de desconexiones (Sección~\ref{sec:disc_hallazgos}). Los cuatro objetivos específicos se completaron (Sección~\ref{sec:objetivos}), y la parte que no salió como se esperaba dejó un resultado concreto: el límite de un sistema entrenado con un solo paciente virtual cuando la glucosa real sale del rango que vio durante el entrenamiento. Con tres pacientes y una sola colocación de fallos por ventana, estas conclusiones describen la dirección de los resultados mejor que su magnitud exacta.
- 
+En cuanto a la hipótesis (Sección~\ref{sec:hipotesis}), su primera parte se sostiene en datos simulados, salvo en el error medio absoluto (MAE), que no mejora. De la segunda solo se cumple la detección de desconexiones (Sección~\ref{sec:disc_hallazgos}). Los cuatro objetivos específicos se completaron (Sección~\ref{sec:objetivos}), y la parte que no salió como se esperaba dejó un resultado concreto: el límite de un sistema entrenado con un solo paciente virtual cuando la glucosa real sale del rango que vio durante el entrenamiento.
+
 \section{Aportaciones de la tesis}
 \label{sec:aportaciones}
  
 Las aportaciones corresponden a las tres extensiones que la Sección~\ref{sec:planteamiento_problema} planteó sobre el trabajo previo: el umbral adaptativo, el pipeline desacoplado y la evaluación clínica sobre datos reales. Aquí se describe qué se construyó en cada una y qué parte puede usarse fuera de este sistema; la evidencia está en los Capítulos~\ref{cap:resultados} y~\ref{cap:discusion}.
 
-El umbral adaptativo B+ROC (Sección~\ref{subsec:umbral_adaptativo}) escala la tolerancia con la glucosa predicha y la amplía cuando la glucosa cambia deprisa. Sigue la lógica de la norma ISO 15197, que tolera un error absoluto en hipoglucemia y uno relativo en el resto del rango: el término proporcional cubre lo segundo y el piso de 7~mg/dL lo primero. La referencia del umbral es la predicción de la red y no la lectura del sensor, para que un fallo no modifique el umbral que debe detectarlo. En datos simulados cambió el punto de operación de las cuatro arquitecturas sin alterar su AUC, y eliminó las falsas alarmas con una pérdida de recall de 0.016 como máximo. Solo necesita una predicción y el historial reciente de la señal, así que puede aplicarse a cualquier detector basado en el error de un modelo. Falta medir su efecto frente al umbral fijo sobre datos reales.
+El umbral adaptativo B+ROC (Sección~\ref{subsec:umbral_adaptativo}) escala la tolerancia con la glucosa predicha y la amplía cuando la glucosa cambia deprisa, para volver a su valor base cuando se estabiliza. Sigue la lógica de la norma ISO 15197, que tolera un error absoluto en hipoglucemia y uno relativo en el resto del rango: el término proporcional cubre lo segundo y el piso de 7~mg/dL lo primero. La referencia del umbral es la predicción de la red y no la lectura del sensor, para que un fallo no modifique el umbral que debe detectarlo. En datos simulados eliminó las falsas alarmas en las cuatro arquitecturas, con una pérdida de recall de 0.016 como máximo, sin modificar las redes, lo que cambia es la regla con la que se decide si una muestra tiene un fallo. Necesitando solo una predicción y el historial reciente de la señal, así que puede aplicarse a cualquier detector basado en el error de un modelo. Falta medir su efecto frente al umbral fijo sobre datos reales.
 
-En el pipeline desacoplado (Sección~\ref{sec:pipeline_desacoplado}), lo que más aporta es la evaluación de las dieciséis combinaciones entre detector e imputador. Mostró que el F1 depende solo del detector, mientras el MAE y el RMSE dependen solo del imputador, sin interacción entre ellos; en las métricas calculadas sobre la señal de salida, como $R^2$ y MARD, la dependencia que queda aparece en la tercera o cuarta cifra decimal (Sección~\ref{subsec:independencia}). Esa independencia sale de la estructura del pipeline, no de las arquitecturas probadas, de modo que cada etapa puede elegirse o sustituirse por separado. Aquí permitió unir el mejor detector, la GRU, con el imputador de menor RMSE, 1D-CNN, una combinación que el esquema unificado no puede formar. La ganancia en error medio absoluto fue pequeña.
+En el pipeline desacoplado (Sección~\ref{sec:pipeline_desacoplado}), lo que más aporta es la evaluación de las dieciséis combinaciones entre detector e imputador. Mostró que el F1 depende solo del detector, mientras el MAE y el RMSE dependen solo del imputador, sin interacción entre ellos; en las métricas calculadas sobre la señal de salida, como $R^2$ y MARD, la dependencia que queda aparece en la tercera o cuarta cifra decimal (Sección~\ref{subsec:independencia}). Esa independencia sale de la estructura del pipeline, no de las arquitecturas probadas, de modo que cada etapa puede elegirse o sustituirse por separado. Aquí permitió unir el mejor detector, la GRU, con el imputador de menor RMSE, 1D-CNN, una combinación que el esquema unificado no puede formar. La ganancia en el error medio absoluto fue pequeña.
 
 Para la tercera extensión hubo que armar un protocolo con el que un modelo entrenado en datos simulados pudiera evaluarse sobre registros de OhioT1DM (Sección~\ref{subsec:datos_reales}). Los eventos de insulina y de comida se convierten en las señales continuas que la red vio durante el entrenamiento, mediante los submodelos de absorción del modelo de Sorensen; el factor de escala de los carbohidratos se calcula con la parte del registro que queda fuera de la ventana evaluada. Sobre el registro real se inyectan fallos sintéticos, y la lectura original del sensor sirve de referencia, de manera que el error de imputación puede medirse aunque los huecos naturales no tengan glucosa con qué compararse. Dos comparadores sin entrenamiento acompañan a la red: repetir la lectura anterior y mantener la última lectura válida durante el fallo. Fueron estos los que mostraron que, en las desconexiones largas, la reconstrucción tenía más error que la opción más simple (Sección~\ref{sec:disc_imputacion}).
  
