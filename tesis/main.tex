@@ -104,8 +104,37 @@ CO-DIRECTOR DE TESIS\\
 \newpage
 
 \chapter*{Agradecimientos}
+\addcontentsline{toc}{chapter}{Agradecimientos}
 
-...
+\begingroup
+\setlength{\parskip}{1em}      % espacio entre párrafos; prueba 0.8em, 1em, 1.5em
+\setlength{\parindent}{0pt}    % opcional: quita la sangría, se ve mejor con más espacio
+
+
+Agradezco a la Secretaría de Ciencia, Humanidades, Tecnología e Innovación (SECIHTI) por la beca otorgada para mis estudios de maestría. %(CVU 2056953).
+
+A la Universidad de Guadalajara, en particular al Centro Universitario de Ciencias Exactas e Ingenierías (CUCEI), que desde la licenciatura me brindó las herramientas para desenvolverme en el ámbito académico y me motivó a continuar con un posgrado.
+
+Al Dr. Oscar Sánchez, director de esta tesis, por presentarme el proyecto y tomarse el tiempo de explicarme el tema a detalle. Siempre estuvo al pendiente de mis dudas y de cómo avanzaba el trabajo. Más allá de la tesis, me tomó en cuenta para eventos académicos y para colaborar en publicaciones.
+
+La Dra. Alma Alanís, codirectora, sentó con sus investigaciones previas la base sobre la que se construyó este proyecto. Le agradezco además la revisión de los resultados a lo largo del desarrollo de la tesis.
+
+Al Dr. Jorge Ríos, coordinador de la maestría y también mi profesor, por el seguimiento que me dio a lo largo de todo el programa. Tanto durante la movilidad saliente como a mi regreso, se aseguró de que mi situación académica estuviera en orden.
+
+A mis padres, Tomás y Jenny, por siempre creer en mí y alentarme a cumplir mis sueños y a superarme día a día. Incluso en mis momentos de mayor estrés, supieron cómo animarme, ya fuera con una buena plática o unos buenos tacos. Gracias por enseñarme los valores de resiliencia, honestidad y respeto; sin ustedes esto no hubiera sido posible.
+
+A mi familia, que estuvo pendiente de mí durante todo el posgrado. Saber que contaba con ellos, incluso mientras estuve fuera del país, me hizo sentir acompañado. 
+
+De forma especial, a mis tías Sara y Paty, cuyo ejemplo de preparación académica fue una motivación constante para hacer lo mismo. Gracias por apostar por mi formación desde antes de la maestría y por respaldarme en cada etapa. 
+
+A mi hermana Andrea, experta en entrar a mi cuarto a distraerme justo cuando más lo necesitaba, y en preguntarme ``¿y cuánto te falta?''. Hoy por fin ya no falta nada.
+
+A Oliver y a Andrea Noriega, dos de mis mejores amigos desde hace muchos años. Cursamos nuestras maestrías en paralelo y, aunque estábamos lejos, eso no impidió que estuvieran atentos a cómo me sentía y a los retos que se me presentaban. Visitarlos durante el intercambio fue una de las mejores experiencias; gracias por su apoyo incondicional.
+
+To Eunwoo, Ana, Robin, Pietro, Amanda, Maida, Abbie, Margherita Lanza, Margherita Nannini, Edo, and Paola. I couldn't have asked for better people to share my exchange with. You made Heidelberg feel like home. After long days of working on this thesis, knowing we'd hang out at the Neckarwiese later kept me going. Thank you for all the moments together.
+
+
+\endgroup
 
 \newpage
 
@@ -201,7 +230,6 @@ La hipótesis de este trabajo es que sustituir el umbral fijo de detección por 
 % =================================================
 % SECCIÓN 1.5
 % =================================================
-\newpage
 \section{Objetivos}
 \label{sec:objetivos}
 
@@ -454,7 +482,6 @@ Se generaron 1\,400 observaciones muestreadas cada 5~min, cerca de 5~días simul
  \end{figure}
 
 \subsubsection*{Variables fisiológicas de entrada}
-
 La insulina exógena reduce la glucosa plasmática con un retardo que depende de su absorción y eliminación subcutánea, y las comidas la elevan a medida que los carbohidratos se digieren y se absorben en el intestino. Por eso tiene sentido fisiológico incluir la insulina y los carbohidratos como entradas. Expresarlos como perfiles de absorción, además, alinea cada entrada con el momento en que realmente afecta a la glucosa, lo que facilita el aprendizaje de los modelos recurrentes y mejora la precisión de la predicción~\cite{munoz2021learning}.
 
 El vector de entrada del sistema incluye entonces la insulina y los carbohidratos como variables exógenas, representadas de modo que reflejen sus efectos retardados. La composición de las comidas, más allá del total de carbohidratos, también influye en las fases tardías de la excursión glucémica y mejora las predicciones a horizontes de 30 a 60~min~\cite{annuzzi2023impact}, aunque en este trabajo solo se usa el total de carbohidratos.
@@ -664,7 +691,6 @@ La arquitectura CNN--LSTM combina convolución y recurrencia en una topología s
 
 La idea es aprovechar lo que hace bien cada parte. La capa convolucional detecta patrones locales, como una transición brusca entre muestras adyacentes que puede indicar ruido, y la LSTM, descrita por las Ecuaciones~\eqref{eq:lstm} de la Sección~\ref{subsec:lstm}, integra esos patrones a lo largo del tiempo, donde aparecen efectos más lentos como los de la insulina y la digestión de los carbohidratos. En la primera etapa, fue la arquitectura con mejor F1 en la detección de fallos~\cite{sanchez2025imputation}.
 
-
 \subsection{GRU}
 \label{subsec:arq_gru}
 
@@ -690,7 +716,11 @@ Como se describió en la Sección~\ref{subsec:transformer}, la autoatención pon
 \subsection{Resumen comparativo de las arquitecturas}
 \label{subsec:resumen_arquitecturas}
 
-La Tabla~\ref{tab:arquitecturas} resume la composición de las cuatro arquitecturas implementadas.
+La Tabla~\ref{tab:arquitecturas} resume la composición de las cuatro arquitecturas implementadas. Todas reciben la misma entrada $\mathbf{x}(k)$ y terminan en una capa densa de una sola unidad que produce $\hat{g}(k)$; tres de ellas pasan antes por una capa densa de 64 unidades con ReLU. Lo que más cambia de una red a otra es, entonces, el bloque que extrae características de la ventana. La GRU es la más ligera, con una sola capa recurrente, y le sigue la 1D-CNN, la única que no usa unidades recurrentes. La CNN--LSTM y la Transformer--LSTM tienen más parámetros entrenables por combinar bloques de distinto tipo. En las tres redes con capas recurrentes, estas tienen 32 unidades y un \textit{dropout} de 30\,\%; la 1D-CNN usa 20\,\% después de su primera convolución.
+
+Contar con redes de tamaños y paradigmas diferentes permite ver cuál conviene según el objetivo: reducir los errores grandes o el error promedio, detectar más fallos o buscar un equilibrio entre métricas. Para que la comparación dependa solo de la arquitectura, las cuatro se entrenan con el mismo procedimiento e hiperparámetros (Sección~\ref{sec:entrenamiento}). En la primera etapa ninguna fue la mejor en todo (Sección~\ref{sec:planteamiento_problema}), y esa diferencia entre tareas es la que aprovecha el pipeline desacoplado de la Sección~\ref{sec:pipeline_desacoplado}.
+
+%En ella se observa cómo la GRU es la arquitectura más ligera, seguida por la 1D-CNN, mientras que la CNN--LSTM y la Transformer--LSTM tienen más parámetros entrenables por combinar bloques de distinto tipo. Contar con redes de tamaños y paradigmas diferentes permite ver cuál conviene según el objetivo: reducir los errores grandes o el error promedio, detectar más fallos, o buscar un equilibrio entre métricas. En la primera etapa ninguna fue la mejor en todo (Sección~\ref{sec:planteamiento_problema}), y esa diferencia entre tareas es la que aprovecha el pipeline desacoplado de la Sección~\ref{sec:pipeline_desacoplado}.
 
 \begin{table}[H]
     \centering
@@ -753,8 +783,6 @@ La Tabla~\ref{tab:arquitecturas} resume la composición de las cuatro arquitectu
     \end{tabular}
 \end{table}
 
-La GRU es la arquitectura más ligera, seguida por la 1D-CNN, mientras que la CNN--LSTM y la Transformer--LSTM tienen más parámetros entrenables por combinar bloques de distinto tipo. Contar con redes de tamaños y paradigmas diferentes permite ver cuál conviene según el objetivo: reducir los errores grandes o el error promedio, detectar más fallos, o buscar un equilibrio entre métricas. En la primera etapa ninguna fue la mejor en todo (Sección~\ref{sec:planteamiento_problema}), y esa diferencia entre tareas es la que aprovecha el pipeline desacoplado de la Sección~\ref{sec:pipeline_desacoplado}.
-
 % =================================================
 % SECCIÓN 3.5
 % =================================================
@@ -802,7 +830,7 @@ El límite es de 300 épocas, aunque rara vez se alcanza gracias al \textit{earl
 
 La Tabla~\ref{tab:hiperparametros} reúne los hiperparámetros del entrenamiento. Son los mismos para las cuatro arquitecturas, de modo que las diferencias de desempeño se pueden atribuir a la arquitectura y no al procedimiento.
 
-\begin{table}[h]
+\begin{table}[htbp]
     \centering
     \caption{Hiperparámetros utilizados en el entrenamiento de las cuatro arquitecturas neuronales.}
     \label{tab:hiperparametros}
@@ -1127,11 +1155,6 @@ En todo el pipeline se usa solo el umbral adaptativo B+ROC, con $\beta = 0.10$, 
 
 En cada instante $k$, el pipeline ejecuta tres pasos en secuencia, detallados en el Algoritmo~\ref{alg:pipeline}.
 
-\paragraph{Paso 1: predicción de ambas redes.} El detector construye su ventana deslizante $\mathbf{x}_{\mathrm{det}}(k)$ con el historial reciente de glucosa, corrige los valores fisiológicamente inviables con sus propias predicciones previas, la normaliza con sus parámetros y genera la predicción $\hat{g}_{\mathrm{det}}(k)$. El imputador hace lo mismo con su \textit{propia} ventana $\mathbf{x}_{\mathrm{imp}}(k)$ y sus propios parámetros, y genera $\hat{g}_{\mathrm{imp}}(k)$. Las dos predicciones se calculan en cada instante, haya fallo o no.
-
-\paragraph{Paso 2: error y umbral.} Se calcula el error de detección $e(k) = |\hat{g}_{\mathrm{det}}(k) - g(k)|$ y el umbral adaptativo $\tau(k)$ de la Ecuación~\eqref{eq:umbral_adaptativo}, con la predicción del detector como referencia glucémica y su ventana histórica para la tasa de cambio.
-
-\paragraph{Paso 3: decisión e imputación.} Si $e(k) > \tau(k)$, se declara un fallo y la salida se construye con la predicción del imputador, según la estrategia de la Sección~\ref{subsec:estrategia_imputacion}: suavizado adaptativo para ráfagas de ruido blanco ($e(k) < \tau_{\mathrm{D}}$) y reemplazo directo para desconexiones ($e(k) \geq \tau_{\mathrm{D}}$). Si $e(k) \leq \tau(k)$, la lectura se considera válida y se conserva sin cambios, $g_{\mathrm{final}}(k) = g(k)$, y la predicción del imputador no se usa en la salida.
 \begin{algorithm}[h]
 \caption{Operación en línea del pipeline desacoplado detector--imputador.}
 \label{alg:pipeline}
@@ -1168,6 +1191,12 @@ En cada instante $k$, el pipeline ejecuta tres pasos en secuencia, detallados en
 
 \end{algorithmic}
 \end{algorithm}
+
+\paragraph{Paso 1: predicción de ambas redes.} El detector construye su ventana deslizante $\mathbf{x}_{\mathrm{det}}(k)$ con el historial reciente de glucosa, corrige los valores fisiológicamente inviables con sus propias predicciones previas, la normaliza con sus parámetros y genera la predicción $\hat{g}_{\mathrm{det}}(k)$. El imputador hace lo mismo con su \textit{propia} ventana $\mathbf{x}_{\mathrm{imp}}(k)$ y sus propios parámetros, y genera $\hat{g}_{\mathrm{imp}}(k)$. Las dos predicciones se calculan en cada instante, haya fallo o no.
+
+\paragraph{Paso 2: error y umbral.} Se calcula el error de detección $e(k) = |\hat{g}_{\mathrm{det}}(k) - g(k)|$ y el umbral adaptativo $\tau(k)$ de la Ecuación~\eqref{eq:umbral_adaptativo}, con la predicción del detector como referencia glucémica y su ventana histórica para la tasa de cambio.
+
+\paragraph{Paso 3: decisión e imputación.} Si $e(k) > \tau(k)$, se declara un fallo y la salida se construye con la predicción del imputador, según la estrategia de la Sección~\ref{subsec:estrategia_imputacion}: suavizado adaptativo para ráfagas de ruido blanco ($e(k) < \tau_{\mathrm{D}}$) y reemplazo directo para desconexiones ($e(k) \geq \tau_{\mathrm{D}}$). Si $e(k) \leq \tau(k)$, la lectura se considera válida y se conserva sin cambios, $g_{\mathrm{final}}(k) = g(k)$, y la predicción del imputador no se usa en la salida.
 
 \subsection{Diseño experimental: evaluación exhaustiva de las dieciséis combinaciones}
 \label{subsec:diseno_pipeline}
@@ -1926,16 +1955,16 @@ La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. 
  
 La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. En las tres desconexiones de 50 muestras (4.2~h, paneles a--c) la referencia sube hasta 322, 292 y 310~mg/dL en los pacientes 540, 559 y 596, mientras que las dos configuraciones parten de la última lectura válida (196, 191 y 218~mg/dL) y descienden. GRU\,$\rightarrow$\,GRU llega a mínimos de 71, 66 y 106~mg/dL, y GRU\,$\rightarrow$\,1D-CNN de 94, 96 y 96~mg/dL; esta última se estabiliza cerca de 100~mg/dL, mientras que la primera sigue bajando hasta el final del episodio en el paciente 559. Al reanudarse la lectura, la salida vuelve a la referencia con saltos de 80 a 128~mg/dL. La razón de este descenso se discute en el Capítulo~\ref{cap:discusion}.
  
+En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el error D3 (el error de la señal final en las muestras con ruido) de 4.7~mg/dL en ambas configuraciones, es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
+
+Sin reajuste, el pipeline casi no interviene en el ruido y queda lejos de la referencia en las desconexiones largas, donde el LOCF tiene menos error en todos los intervalos de tiempo. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_ohio_reconstruccion_episodios.eps}
     \caption{Acercamiento a los episodios inyectados más largos de cada tipo en los pacientes 540 (columna izquierda), 559 (central) y 596 (derecha). Arriba, (a)--(c): desconexión de 50 muestras (4.2~h). Abajo, (d)--(f): ráfaga de ruido blanco de 35 muestras (2.9~h), que cae en las mismas muestras de los tres pacientes. Las curvas y las franjas son las de la Figura~\ref{fig:ohio_ventanas}; el tiempo se mide en horas desde el inicio de la ventana.}
     \label{fig:ohio_episodios}
 \end{figure}
- 
-En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el error D3 (el error de la señal final en las muestras con ruido) de 4.7~mg/dL en ambas configuraciones, es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
-
-Sin reajuste, el pipeline casi no interviene en el ruido y queda lejos de la referencia en las desconexiones largas, donde el LOCF tiene menos error en todos los intervalos de tiempo. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
  
 El error dentro de la desconexión crece con el tiempo transcurrido desde su inicio (Tabla~\ref{tab:ohio_error_tiempo}). En los primeros 30~min es de 40~mg/dL con GRU\,$\rightarrow$\,GRU y de 54~mg/dL con GRU\,$\rightarrow$\,1D-CNN; a la hora ya pasa de 90~mg/dL en ambas, y entre los 105 y los 150~min ronda los 195~mg/dL. El LOCF sube más despacio, de 26 a 89~mg/dL en esos mismos rangos. Los tres últimos rangos incluyen solo las desconexiones de 50 muestras, una por paciente, de modo que su nivel depende del lugar de la ventana en que cayó cada una; la comparación con el LOCF, en cambio, se hace sobre las mismas muestras.
  
@@ -2016,7 +2045,7 @@ Media $\pm$ DE & 4.65~$\pm$ 0.46 & 12.41~$\pm$ 1.23 & 4.66~$\pm$ 1.07 & 13.22~$\
  
 La salida del 540, por encima de su lectura sin corregir, se explica sobre todo por su primera ráfaga (Figura~\ref{fig:ohio_sens_ruido}, paneles a y d), durante la cual la referencia baja de 141 a 47~mg/dL. Entre las muestras 271 y 278 las cinco redes señalan cada una de esas muestras y la salida se mantiene entre 138 y 142~mg/dL, mientras la referencia cae de 109 a 52~mg/dL. De las 5 muestras de la ráfaga con referencia por debajo de 70~mg/dL, la salida queda por debajo de ese nivel en una, contra cuatro con $\sigma$~=~5.6. Se observa en un solo paciente y con una sola colocación de fallos.
  
-\begin{figure}[H]
+\begin{figure}[!tbp]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_ohio_sensibilidad_ruido.eps}
     \caption{Primera ráfaga de ruido inyectada (30 muestras, 2.5~h) en los pacientes 540 (columna izquierda), 559 (central) y 596 (derecha). Arriba, (a)--(c): $\sigma$~=~5.6~mg/dL. Abajo, (d)--(f): $\sigma$~=~15~mg/dL, con el mismo patrón de ruido a mayor escala. Las curvas y las franjas son las de la Figura~\ref{fig:ohio_ventanas}; el tiempo se mide en horas desde el inicio de la ventana.}
@@ -2058,7 +2087,7 @@ GMI (\%)              & 5.7   & 5.6   & 5.7   & 5.7   & 5.6   & 5.6   & <7\% \\
 \end{table}
 
 TIR, TBR$_1$, TBR$_2$, TAR$_1$ y TAR$_2$ resultan idénticos en los tres escenarios para ambas configuraciones: 100\,\% de tiempo en rango y 0\,\% en cada uno de los cuatro niveles de desviación. La glucosa simulada nunca sale del rango 70--180\,mg/dL, con o sin fallo inyectado, de modo que el pipeline no tiene hipo ni hiperglucemia que prevenir y los cinco indicadores quedan saturados, como se anticipó en la Sección~\ref{subsec:cobertura_clinica}. Ahí no puede aparecer diferencia alguna entre GRU$\to$GRU y GRU$\to$1D-CNN.
-
+\newpage
 Donde sí hay margen es en CV y GMI, continuos y por tanto sensibles a desviaciones que las bandas discretas no capturan. $\Delta$CV es de apenas +0.1 puntos porcentuales para GRU$\to$1D-CNN (16.3\,\% $\to$ 16.4\,\%) frente a +0.8 para GRU$\to$GRU (16.3\,\% $\to$ 17.1\,\%); en GMI, GRU$\to$1D-CNN reproduce el valor de referencia con exactitud (5.7\,\%) mientras GRU$\to$GRU se desvía una décima (5.6\,\%). La Sección~\ref{subsec:cobertura_clinica} había anticipado el riesgo contrario, que el suavizado del pipeline redujera artificialmente el CV en los tramos imputados, pero con GRU$\to$GRU ocurre lo opuesto: su reconstrucción durante la desconexión de la Figura~\ref{fig:reconstruccion_gru} se aleja monótonamente de la señal real en vez de aplanarse, y eso añade variabilidad en lugar de esconderla.
 
 Las diferencias son pequeñas en términos absolutos. Sobre una simulación que apenas se mueve dentro del rango normoglucémico, ninguno de los dos pipelines tiene margen para mostrar más. La misma comparación se repite con pacientes reales, cuya glucosa sí llega a los rangos de hipo e hiperglucemia, en la subsección~\ref{subsec:clinico_ohio}.
@@ -2165,11 +2194,11 @@ Dentro de las desconexiones, la reconstrucción queda por detrás del LOCF en to
 
 Una explicación posible es que, sin lecturas que la sostengan, la predicción vuelve hacia los valores con los que se entrenó la red: la señal de entrenamiento promedia unos $110$~mg/dL y no pasa de $214$ (Figura~\ref{fig:datos_sinteticos}), y GRU\,$\rightarrow$\,1D-CNN se estabiliza cerca de $100$~mg/dL en las desconexiones largas. Que el error aparezca por arriba y por abajo, y con las dos configuraciones, apunta más a los datos de entrenamiento que a la arquitectura. En D3 las dos son casi iguales, tanto en desconexiones como en ruido, y en D1 gana GRU\,$\rightarrow$\,GRU en los tres pacientes. La ventaja de GRU\,$\rightarrow$\,1D-CNN en Sorensen (mejor RMSE, $3.82$~mg/dL, y mejor D3) no se confirma. La explicación no se probó; haría falta repetir el experimento con redes entrenadas con glucosa más alta.
 
-Dónde caen las desconexiones influye, pero no lo explica todo. En una corrida previa, que no aparece en el Capítulo~\ref{cap:resultados}, las dos desconexiones se pusieron en tramos de glucosa normal (ninguna muestra con falla pasó de $250$~mg/dL). D3 fue de $44.37 \pm 19.03$~mg/dL con GRU\,$\rightarrow$\,GRU y de $41.56 \pm 18.13$~mg/dL con GRU\,$\rightarrow$\,1D-CNN, contra $33.66 \pm 5.08$~mg/dL del LOCF. El error de la red bajó de $2.4$ veces el del LOCF a $1.3$ y $1.2$ veces, y aun así el LOCF siguió ganando en promedio, aunque por poco frente a la variación entre pacientes. El artículo del grupo menciona un respaldo con LOCF entre sus mecanismos de seguridad~\cite{sanchez2025imputation}; en las dos colocaciones probadas aquí, ese respaldo habría tenido menos error que la reconstrucción.
+Dónde caen las desconexiones influye, pero no lo explica todo. En una corrida previa, que no aparece en el Capítulo~\ref{cap:resultados}, las dos desconexiones se pusieron en tramos de glucosa normal (ninguna muestra con falla pasó de $250$~mg/dL). D3 fue de $44.37 \pm 19.03$~mg/dL con GRU\,$\rightarrow$\,GRU y de $41.56 \pm 18.13$~mg/dL con GRU\,$\rightarrow$\,1D-CNN, contra $33.66 \pm 5.08$~mg/dL del LOCF. El error de la red bajó de $2.4$ veces el del LOCF a $1.3$ y $1.2$ veces, y aun así el LOCF siguió ganando en promedio, aunque por poco frente a la variación entre pacientes. En la primera etapa se propuso un respaldo con LOCF entre los mecanismos de seguridad del sistema~\cite{sanchez2025imputation}; en las dos colocaciones probadas aquí, ese respaldo habría tenido menos error que la reconstrucción.
 
 El ruido, el otro tipo de fallo con referencia, se comporta distinto: el pipeline casi no lo corrige. Con $\sigma$~=~5.6~mg/dL el detector deja pasar la mayor parte de las ráfagas (Sección~\ref{sec:disc_deteccion}) y la salida es la propia lectura. Con $\sigma$~=~15~mg/dL la salida queda, en promedio, tan lejos de la referencia como la lectura ($13.22$ y $12.33$~mg/dL contra $12.41$~mg/dL), y el efecto depende del paciente: la salida mejora la lectura en el 559 y el 596, y la empeora en el 540 ($22.38$ contra $13.20$~mg/dL con GRU\,$\rightarrow$\,GRU).
 
-Lo del 540 parece venir del suavizado. Cuando el detector marca una muestra de ruido, la salida mezcla la predicción de la red con la salida anterior, y el peso de la predicción es $\alpha = 1/(1 + \mathrm{Var})$, con $\mathrm{Var}$ la varianza de los errores de detección de las 30 muestras previas (Ecuación~\ref{eq:alpha_adaptativo}); si esos errores varían mucho, $\alpha$ tiende a 0 y la salida repite la anterior. Con $\sigma$~=~15~mg/dL el detector marca mucho más ruido (recall de ruido de $0.61$ contra $0.19$) y la mediana de $\alpha$ cae de $0.02$--$0.04$ a $0.003$--$0.006$, de modo que la salida de las muestras marcadas casi no se mueve. En una ráfaga del 540 la referencia baja de $141$ a $47$~mg/dL y la salida se queda entre $138$ y $142$~mg/dL; de las 5 muestras con referencia bajo $70$~mg/dL, la salida cae bajo ese nivel en una, contra cuatro con $\sigma$~=~5.6~mg/dL. El suavizado se definió con una señal simulada mucho más regular que la real (desviación estándar de $16$ contra $55$~mg/dL), y con un paciente y una colocación de fallos no hay forma de saber si el 540 es un caso aislado.
+Lo del 540 parece venir del suavizado. Cuando el detector marca una muestra de ruido, la salida mezcla la predicción de la red con la salida anterior, y el peso de la predicción es $\alpha = 1/(1 + \mathrm{Var})$, con $\mathrm{Var}$ la varianza de los errores de detección de las 30 muestras previas (Ecuación~\ref{eq:alpha_adaptativo}); si esos errores varían mucho, $\alpha$ tiende a 0 y la salida repite la anterior. Con $\sigma$~=~15~mg/dL el detector marca mucho más ruido (recall de ruido de $0.61$ contra $0.19$) y la mediana de $\alpha$ cae de $0.02$--$0.04$ a $0.003$--$0.006$, de modo que la salida de las muestras marcadas casi no se mueve. En una ráfaga del 540 la referencia baja de $141$ a $47$~mg/dL y la salida se queda entre $138$ y $142$~mg/dL; de las 5 muestras con referencia bajo $70$~mg/dL, la salida cae bajo ese nivel en una, contra cuatro con $\sigma$~=~5.6~mg/dL. El suavizado se definió con una señal simulada mucho más regular que la real (desviación estándar de $16$ contra $55$~mg/dL), y con un paciente y una colocación de fallos no se sabe si el 540 es un caso aislado.
 
 % =================================================
 % SECCIÓN 5.4
