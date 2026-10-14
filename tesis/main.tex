@@ -96,7 +96,7 @@ CO-DIRECTOR DE TESIS\\
 
 \vspace{0.25cm}
 \vspace{0.5cm}
-\large {Guadalajara, Jalisco, 13 de Octubre del 2026} \vspace{1cm} \\
+\large {Guadalajara, Jalisco, 13 de octubre del 2026} \vspace{1cm} \\
 \begin{tabular}{p{4cm}p{8cm}}
 \end{tabular}
 \end{center}
@@ -149,7 +149,7 @@ Los sensores de monitoreo continuo de glucosa (CGM) pueden sufrir interrupciones
 En una primera etapa, una misma red detectaba e imputaba con un umbral fijo de 10~mg/dL, y se compararon cuatro arquitecturas (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) sobre datos simulados con el modelo de Sorensen. %; esos resultados se publicaron en la revista \textit{Algorithms}.%
 Después, el umbral fijo se cambió por uno que se ajusta a la glucosa predicha y a su velocidad de cambio. También se separaron la detección y la imputación en dos redes, lo que permitió evaluar las dieciséis combinaciones posibles entre detector e imputador. Las dos mejores configuraciones se aplicaron, sin reentrenar, a tres pacientes del conjunto OhioT1DM, en cuyos registros se inyectaron fallos sintéticos para que la lectura original sirviera de referencia al medir el error de imputación y los indicadores clínicos que propone el consenso internacional de 2019 sobre el tiempo en rango.
 
-Con los datos simulados, el umbral adaptativo eliminó los falsos positivos en las cuatro arquitecturas (precisión de 1.000) a cambio de perder, como máximo, 0.016 de recall. El F1 dependió solo del detector, y el error de imputación, solo del imputador. Las dos configuraciones co-óptimas usan la GRU como detector (F1 = 0.884): GRU\,$\rightarrow$\,GRU tiene el menor error medio absoluto (2.92~mg/dL) y GRU\,$\rightarrow$\,1D-CNN, el menor RMSE (3.82~mg/dL).
+Con los datos simulados, el umbral adaptativo eliminó los falsos positivos en las cuatro arquitecturas (precisión de 1.000) a cambio de perder, como máximo, 0.016 de recall. El F1 dependió solo del detector, y el error de imputación, solo del imputador. Las dos configuraciones co-óptimas usan la GRU como detector (F1 = 0.884): GRU\,$\rightarrow$\,GRU tiene el menor error absoluto medio (2.92~mg/dL) y GRU\,$\rightarrow$\,1D-CNN, el menor RMSE (3.82~mg/dL).
 
 En OhioT1DM se detectaron todas las desconexiones inyectadas y todos los huecos reales del sensor, pero el F1 bajó a $0.702 \pm 0.087$. El umbral dejó pasar la mayor parte del ruido de baja amplitud y produjo falsas alarmas por encima de 250~mg/dL, un nivel que la señal de entrenamiento nunca alcanza. Dentro de las desconexiones, mantener la última lectura válida tuvo menos error que la reconstrucción de la red (54 contra 127~mg/dL). Cuando las desconexiones cayeron sobre excursiones de glucosa, la señal reconstruida subió el tiempo en rango entre 4.2 y 4.9 puntos respecto a la referencia, de modo que el informe mostraba un control mejor que el registrado por el sensor. La detección de desconexiones se mantuvo en datos reales, pero la reconstrucción de las más largas no alcanzó la exactitud que tuvo en simulación. Una explicación posible es que la glucosa real salió del rango visto durante el entrenamiento, aunque esta tesis no llegó a comprobarlo.
 
@@ -201,7 +201,7 @@ Ese supuesto falla con más frecuencia de la deseada. Un sensor de CGM puede int
 \section{Planteamiento del problema}
 \label{sec:planteamiento_problema}
 
-Frente al problema descrito en la Sección~\ref{sec:contexto_general}, la literatura ha comenzado a explorar sistemas de detección e imputación en línea basados en redes neuronales profundas que combinan la señal de glucosa con variables fisiológicas de entrada, como la insulina administrada y los carbohidratos ingeridos. En una primera etapa de este trabajo se desarrolló un sistema de ese tipo: una misma red predice la glucosa, marca un fallo cuando la lectura del sensor se aleja de la predicción más de un umbral fijo y, en ese caso, reemplaza la lectura por su estimación. Se compararon cuatro arquitecturas (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) bajo un protocolo de inyección controlada de fallos. La CNN-LSTM obtuvo el mejor F1 en la detección (0.876) y la GRU, el menor error medio absoluto de imputación (2.29~mg/dL). Estos resultados, publicados en~\cite{sanchez2025imputation}, mostraron que el enfoque funciona con datos simulados, pero también dejaron ver tres limitaciones.
+Frente al problema descrito en la Sección~\ref{sec:contexto_general}, la literatura ha comenzado a explorar sistemas de detección e imputación en línea basados en redes neuronales profundas que combinan la señal de glucosa con variables fisiológicas de entrada, como la insulina administrada y los carbohidratos ingeridos. En una primera etapa de este trabajo se desarrolló un sistema de ese tipo: una misma red predice la glucosa, marca un fallo cuando la lectura del sensor se aleja de la predicción más de un umbral fijo y, en ese caso, reemplaza la lectura por su estimación. Se compararon cuatro arquitecturas (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) bajo un protocolo de inyección controlada de fallos. La CNN-LSTM obtuvo el mejor F1 en la detección (0.876) y la GRU, el menor error absoluto medio de imputación (2.29~mg/dL). Estos resultados, publicados en~\cite{sanchez2025imputation}, mostraron que el enfoque funciona con datos simulados, pero también dejaron ver tres limitaciones.
 
 La primera está en el umbral. La decisión de marcar una lectura como fallo se apoya en un valor fijo de 10~mg/dL, idéntico para cualquier nivel de glucosa y cualquier velocidad de cambio de la señal. Un umbral constante no distingue dos fuentes de variación: la norma ISO 15197~\cite{iso15197_2013} establece tolerancias distintas para la hipoglucemia y para el resto del rango glucémico, y las predicciones de la red se degradan de forma transitoria durante una excursión posprandial rápida, exista o no un fallo real del sensor. Segundo, la red que genera la predicción usada para detectar el fallo produce también el valor de reemplazo, aunque detectar es un problema de clasificación y reconstruir uno de regresión. En esa misma etapa, ninguna de las cuatro redes fue la mejor en ambas tareas. La validación sobre datos clínicos reales, en tercer lugar, se limitó a un único paciente del conjunto OhioT1DM y se reportó solo con métricas de clasificación, sin conectar los resultados con los indicadores clínicos estandarizados que en la práctica determinan si un sistema de este tipo sirve para el manejo de la diabetes.
 
@@ -213,7 +213,7 @@ Estas limitaciones definen el problema que aborda la tesis: establecer si el esq
 \section{Justificación}
 \label{sec:justificacion}
 
-Un sistema que detecte fallos del sensor y reconstruya la señal de CGM en línea no es un ejercicio exclusivamente técnico: la calidad de esa señal condiciona decisiones terapéuticas que se toman varias veces al día, desde la dosis de insulina hasta la respuesta ante una alerta de hipoglucemia. Un falso negativo en la detección (fallo que pasa como lectura válida) puede traducirse en una decisión clínica tomada sobre datos erróneos. Un falso negativo en la detección, es decir, un fallo que pasa como lectura válida, puede traducirse en una decisión clínica tomada sobre datos erróneos. Ambos errores tienen costo clínico, y ese costo justifica por sí solo dedicar un esfuerzo de investigación a reducirlos.
+Un sistema que detecte fallos del sensor y reconstruya la señal de CGM en línea no es un ejercicio exclusivamente técnico: la calidad de esa señal condiciona decisiones terapéuticas que se toman varias veces al día, desde la dosis de insulina hasta la respuesta ante una alerta de hipoglucemia. En la detección, un falso positivo, es decir, una lectura válida marcada como fallo, sustituye un dato real del paciente por una estimación del modelo. Un falso negativo (un fallo que pasa como lectura válida) puede traducirse en una decisión clínica tomada sobre datos erróneos. Ambos errores tienen costo clínico, y ese costo justifica por sí solo dedicar un esfuerzo de investigación a reducirlos.
 
 A esa motivación clínica se suma una carencia identificable en el estado del arte: como se discutió en la Sección~\ref{sec:planteamiento_problema}, pocos trabajos integran detección de fallos e imputación en un mismo esquema apoyado en variables fisiológicas, y menos todavía evalúan ese esquema bajo un umbral adaptado al contexto glucémico o con arquitecturas especializadas por tarea. Cerrar esa carencia, incluso de forma parcial, amplía lo que se sabe sobre cómo estructurar sistemas de este tipo para su eventual uso en dispositivos comerciales o en algoritmos de control en lazo cerrado.
 
@@ -476,8 +476,8 @@ Se generaron 1\,400 observaciones muestreadas cada 5~min, cerca de 5~días simul
 
  \begin{figure}[H]
      \centering
-     \includegraphics[width=\textwidth]{figures/Datos_sinteticos.eps}
-     \caption{Datos simulados con el modelo de Sorensen para el entrenamiento y la validación interna de las redes: (a) glucosa en sangre $G_{CGM}(t)$; (b) insulina plasmática $I(t)$; (c) absorción de carbohidratos $\mathit{CHO}(t)$.}
+     \includegraphics[width=\textwidth]{figures/datos_sinteticos_sorensen.eps}
+     \caption{Datos simulados con el modelo de Sorensen para el entrenamiento y la validación interna de las redes: (a) glucosa medida por el sensor $G_{CGM}(t)$; (b) insulina plasmática $I(t)$; (c) absorción de carbohidratos $\mathit{CHO}(t)$.}
      \label{fig:datos_sinteticos}
  \end{figure}
 
@@ -584,8 +584,8 @@ La Figura~\ref{fig:test_corrupto} muestra la traza de glucosa del conjunto de pr
 
  \begin{figure}[h]
      \centering
-     \includegraphics[width=0.9\textwidth]{figures/Test_corrupto.eps}
-     \caption{Traza de glucosa CGM simulada utilizada como conjunto de prueba independiente. La señal limpia (azul) representa los niveles fisiológicamente realistas de glucosa generados por el modelo de Sorensen. La señal corrupta (negro) incluye los dos tipos de fallo inyectados: ráfagas de ruido blanco (regiones sombreadas en verde) y desconexiones del sensor (regiones sombreadas en rojo).}
+     \includegraphics[width=0.9\textwidth]{figures/conjunto_prueba.eps}
+     \caption{Traza de glucosa CGM simulada utilizada como conjunto de prueba independiente. La señal limpia (negro) representa los niveles fisiológicamente realistas de glucosa generados por el modelo de Sorensen. La señal corrupta (gris punteada) incluye los dos tipos de fallo inyectados: ráfagas de ruido blanco (regiones sombreadas en amarillo) y desconexiones del sensor (regiones sombreadas en rosa).}
      \label{fig:test_corrupto}
  \end{figure}
 
@@ -660,7 +660,7 @@ La función $f_{\Theta}(\cdot)$, parametrizada por los pesos $\Theta$, es común
 
 Durante el entrenamiento, la ventana se desplaza con un paso (\textit{stride}) de 1, de modo que cada instante genera un nuevo par entrada--salida, con la glucosa y los reguladores fisiológicos alineados en el tiempo.
 
-En la operación en línea, la ventana se actualiza con cada nueva muestra del sensor: $\mathbf{x}(k)$ descarta la lectura de glucosa más antigua y agrega la más reciente, y conserva siempre las últimas $d$ lecturas. Si un valor de glucosa dentro de la ventana falta o el detector lo marcó como fallo (Sección~\ref{sec:deteccion_fallos}), se reemplaza por la última predicción válida del modelo antes del siguiente paso de inferencia. Con esto se busca que un fallo no contamine, a través de la ventana, las predicciones siguientes.
+En la operación en línea, la ventana se actualiza con cada nueva muestra del sensor: $\mathbf{x}(k)$ descarta la lectura de glucosa más antigua y agrega la más reciente, y conserva siempre las últimas $d$ lecturas. Si un valor de glucosa dentro de la ventana es menor a 10~mg/dL, como ocurre en una desconexión o en un dato faltante, se reemplaza por la predicción del modelo para ese instante antes del siguiente paso de inferencia (Sección~\ref{sec:deteccion_fallos}). Con esto se busca que las lecturas cercanas a cero no contaminen, a través de la ventana, las predicciones siguientes.
 
 % \begin{figure}[h]
 %     \centering
@@ -940,7 +940,7 @@ El valor de $\tau_{\mathrm{D}} = 60$~mg/dL deja un margen amplio respecto a las 
 
 Cada tipo de fallo recibe un tratamiento distinto, y también la operación sin fallo tiene su propia regla de salida.
 
-\paragraph{Imputación de ráfagas de ruido blanco (F1).} Con ruido blanco, la lectura del sensor todavía conserva información, porque la perturbación se monta sobre una señal cercana a la correcta. En lugar de descartarla por completo, se aplica un \textit{suavizado adaptativo} que combina la predicción de la red con la imputación del paso anterior mediante un coeficiente $\alpha(k) \in (0, 1)$:
+\paragraph{Imputación de ráfagas de ruido blanco (F1).} Con ruido blanco, la perturbación se monta sobre una señal cercana a la correcta y el error residual se mantiene moderado. En vez de sustituir la lectura por la predicción sin más, se aplica un \textit{suavizado adaptativo} que combina la predicción de la red con la imputación del paso anterior mediante un coeficiente $\alpha(k) \in (0, 1)$:
 \begin{equation}
 \label{eq:imputacion_ruido}
 g_{\mathrm{imp}}(k) = \alpha(k)\, \hat{g}(k) + \big(1 - \alpha(k)\big)\, g_{\mathrm{imp}}(k\!-\!1),
@@ -950,7 +950,7 @@ con
 \label{eq:alpha_adaptativo}
 \alpha(k) = \frac{1}{1 + \mathrm{Var}\big(\, e(k\!-\!w_{\mathrm{init}}),\,\ldots,\,e(k\!-\!1) \,\big)},
 \end{equation}
-donde $\mathrm{Var}(\cdot)$ es la varianza muestral del error residual sobre una ventana de tamaño $w_{\mathrm{init}}$. Cuando los residuos recientes son estables (varianza baja), el sistema confía más en la predicción de la red y $\alpha$ se acerca a 1; cuando son erráticos (varianza alta), da más peso a la continuidad de la trayectoria reconstruida y $\alpha$ se acerca a 0.
+donde $\mathrm{Var}(\cdot)$ es la varianza muestral del error residual sobre una ventana de tamaño $w_{\mathrm{init}}$. Cuando los residuos recientes son estables (varianza baja), el sistema confía más en la predicción de la red y $\alpha$ se acerca a 1; cuando son erráticos (varianza alta), da más peso a la continuidad de la trayectoria reconstruida y $\alpha$ se acerca a 0. La lectura ruidosa no aparece en la Ecuación~\eqref{eq:imputacion_ruido}; interviene solo a través del error residual: con él se decide si hay fallo, y su historial define $\alpha$ en los pasos siguientes.
 
 \paragraph{Imputación de desconexiones del sensor (F2).} Cuando el error residual indica una desconexión, la lectura no contiene información útil y se reemplaza por completo con la predicción del modelo:
 \begin{equation}
@@ -960,13 +960,12 @@ g_{\mathrm{imp}}(k) = \hat{g}(k).
 
 Este reemplazo directo encaja con el mecanismo de la Sección~\ref{subsec:operacion_online}: la predicción imputada entra a la ventana deslizante de los pasos siguientes, y los valores cercanos a cero no contaminan las predicciones posteriores.
 
-\paragraph{Operación en ausencia de fallo.} Cuando $e(k) \leq \tau$, la lectura se considera válida, pero la salida se calcula como una combinación convexa entre la predicción de la red y la imputación previa, para suavizar las fluctuaciones de alta frecuencia del CGM y mantener la coherencia con la trayectoria reconstruida:
+\paragraph{Operación en ausencia de fallo.} Cuando $e(k) \leq \tau$, la lectura se considera válida y pasa sin cambios a la salida, $g_{\mathrm{final}}(k) = g(k)$. El esquema actualiza de todos modos el valor imputado con una combinación convexa entre la predicción de la red y su valor anterior:
 \begin{equation}
 \label{eq:imputacion_no_fallo}
 g_{\mathrm{imp}}(k) = 0.8\,\hat{g}(k) + 0.2\,g_{\mathrm{imp}}(k\!-\!1).
 \end{equation}
-
-Los pesos 0.8 y 0.2 dan prioridad a la predicción actual de la red sin descartar del todo la continuidad con el paso anterior.
+Este valor no llega a la salida mientras no haya fallo. Sirve como punto de partida de la Ecuación~\eqref{eq:imputacion_ruido}: si en el instante siguiente se detecta una ráfaga de ruido, la imputación arranca desde $g_{\mathrm{imp}}(k)$ y no desde la lectura del sensor. Los pesos 0.8 y 0.2 dan prioridad a la predicción actual de la red sin descartar del todo la continuidad con el paso anterior.
 
 \subsection*{Algoritmo consolidado}
 \label{subsec:algoritmo_general}
@@ -978,7 +977,7 @@ El Algoritmo~\ref{alg:deteccion_imputacion} resume la operación del esquema com
 \label{alg:deteccion_imputacion}
 \begin{algorithmic}[1]
 \Require Lectura actual $g(k)$, ventana $\mathbf{x}(k)$, red entrenada $f_{\Theta}$, umbral $\tau$, umbral de tipo $\tau_{\mathrm{D}}$, ventana de varianza $w_{\mathrm{init}}$, historial de errores $\mathcal{H}_e$
-\Ensure Salida imputada $g_{\mathrm{final}}(k)$, indicador de fallo $f(k)$
+\Ensure Salida final $g_{\mathrm{final}}(k)$, indicador de fallo $f(k)$
 
 \State $\hat{g}(k) \gets f_{\Theta}(\mathbf{x}(k))$ \Comment{Predicción de la red}
 \State $e(k) \gets |g(k) - \hat{g}(k)|$ \Comment{Error residual}
@@ -992,15 +991,16 @@ El Algoritmo~\ref{alg:deteccion_imputacion} resume la operación del esquema com
     \Else
         \State $g_{\mathrm{imp}}(k) \gets \hat{g}(k)$ \Comment{Desconexión}
     \EndIf
+    \State $g_{\mathrm{final}}(k) \gets g_{\mathrm{imp}}(k)$ \Comment{Salida imputada}
 \Else
     \State $f(k) \gets 0$ \Comment{Lectura válida}
-    \State $g_{\mathrm{imp}}(k) \gets 0.8\,\hat{g}(k) + 0.2\,g_{\mathrm{imp}}(k\!-\!1)$
+    \State $g_{\mathrm{imp}}(k) \gets 0.8\,\hat{g}(k) + 0.2\,g_{\mathrm{imp}}(k\!-\!1)$ \Comment{Solo estado interno}
+    \State $g_{\mathrm{final}}(k) \gets g(k)$ \Comment{Se conserva la lectura}
 \EndIf
 
 \State Actualizar $\mathcal{H}_e$ con $e(k)$
-\State Actualizar ventana $\mathbf{x}(k\!+\!1)$ con $g_{\mathrm{imp}}(k)$ \Comment{Reemplazo en ventana deslizante}
-\State \textbf{return} $g_{\mathrm{imp}}(k)$, $f(k)$
-
+\State Agregar $g(k)$ a $\mathbf{x}(k\!+\!1)$, o $g_{\mathrm{imp}}(k)$ si $g(k) < 10$~mg/dL \Comment{Ventana deslizante}
+\State \textbf{return} $g_{\mathrm{final}}(k)$, $f(k)$
 \end{algorithmic}
 \end{algorithm}
 
@@ -1032,7 +1032,7 @@ El umbral adaptativo B+ROC se define como:
 \label{eq:umbral_adaptativo}
 \tau(k) = \max\!\big(\, \tau_{\min},\ \beta \cdot G_{\mathrm{ref}}(k) \,\big) \cdot \big(1 + \gamma\,|\mathrm{ROC}(k)|\big),
 \end{equation}
-donde $G_{\mathrm{ref}}(k)$ representa el nivel de glucosa de referencia en el instante $k$, $\mathrm{ROC}(k)$ es la tasa de cambio reciente de la glucosa, y $\tau_{\min}$, $\beta$, $\gamma$ son tres parámetros ajustables que se discuten en las Subsecciones~\ref{subsec:interpretacion_parametros} y~\ref{subsec:seleccion_parametros}. El máximo fija un piso para el componente proporcional y el factor de tasa de cambio lo amplía después, de modo que $\tau(k) \geq \tau_{\min}$ en todo instante.
+donde $G_{\mathrm{ref}}(k)$ representa el nivel de glucosa de referencia en el instante $k$, $\mathrm{ROC}(k)$ es la tasa de cambio reciente de la glucosa, y $\tau_{\min}$, $\beta$, $\gamma$ son tres parámetros ajustables que se discuten más adelante en esta sección. El máximo fija un piso para el componente proporcional y el factor de tasa de cambio lo amplía después, de modo que $\tau(k) \geq \tau_{\min}$ en todo instante.
 
 Usar como referencia la lectura instantánea del sensor $g(k)$ sería problemático. Si esa lectura está corrupta, que es justo lo que el umbral intenta detectar, el propio umbral quedaría contaminado por el fallo. Por eso se usa como referencia la predicción del modelo:
 \begin{equation}
@@ -1058,7 +1058,7 @@ Cada parámetro de la Ecuación~\eqref{eq:umbral_adaptativo} cumple un papel esp
 
 \paragraph{Parámetro $\tau_{\min}$: piso de seguridad en hipoglucemia severa.} Cuando el nivel de glucosa es muy bajo, la pura proporcionalidad $\beta \cdot G_{\mathrm{ref}}(k)$ produciría umbrales excesivamente pequeños que resultarían vulnerables al ruido inherente del sensor. A 50~mg/dL, un nivel de hipoglucemia clínicamente relevante, el término proporcional sería de apenas 5~mg/dL, comparable a las fluctuaciones típicas del ruido. Para evitar este escenario se introduce un piso $\tau_{\min} = 7$~mg/dL. Es el valor que daría $\beta$ a 70~mg/dL ($0.10 \times 70$), el límite inferior del rango objetivo, de modo que por debajo de ese nivel el umbral deja de reducirse en lugar de seguir a la glucosa hacia magnitudes comparables con el ruido del sensor.
 
-\paragraph{Parámetro $\gamma$: peso del término de dinámica.} El factor $(1 + \gamma\,|\mathrm{ROC}(k)|)$ relaja el umbral durante periodos de cambio rápido de la glucosa. En las excursiones rápidas (posprandiales o por bolo de insulina) las predicciones de la red tienen un error transitorio mayor, porque deben seguir trayectorias que cambian deprisa; bajo un umbral que no lo contemple, ese error se clasificaría como fallo y se sustituirían lecturas válidas por predicciones del modelo. Con $\gamma = 0.05$, valor elegido de forma empírica (Sección~\ref{subsec:seleccion_parametros}), una tasa de cambio de 2~mg/dL por muestra relaja el umbral aproximadamente un 10\,\%. Valores mayores lo relajarían en exceso y dejarían pasar más fallos.
+\paragraph{Parámetro $\gamma$: peso del término de dinámica.} El factor $(1 + \gamma\,|\mathrm{ROC}(k)|)$ relaja el umbral durante periodos de cambio rápido de la glucosa. En las excursiones rápidas (posprandiales o por bolo de insulina) las predicciones de la red tienen un error transitorio mayor, porque deben seguir trayectorias que cambian deprisa; bajo un umbral que no lo contemple, ese error se clasificaría como fallo y se sustituirían lecturas válidas por predicciones del modelo. Con $\gamma = 0.05$, valor elegido de forma empírica, como se describe en una sección adelante, una tasa de cambio de 2~mg/dL por muestra relaja el umbral aproximadamente un 10\,\%. Valores mayores lo relajarían en exceso y dejarían pasar más fallos.
 
 \subsubsection{Comportamiento del umbral a través del rango glucémico}
 \label{subsec:comportamiento_umbral}
@@ -1088,9 +1088,9 @@ Con glucosa estable a 100~mg/dL, el umbral adaptativo vale 10~mg/dL, igual que e
 \subsubsection{Selección empírica de los parámetros}
 \label{subsec:seleccion_parametros}
 
-Los parámetros $\beta = 0.10$ y $\tau_{\min} = 7$~mg/dL se mantuvieron fijos, con la motivación clínica de la Sección~\ref{subsec:interpretacion_parametros}, y la selección empírica se hizo sobre $\gamma$. Se probaron $\gamma = 0$, $0.05$, $0.10$ y $0.15$ con la CNN-LSTM sobre el conjunto de prueba sintético (Sección~\ref{subsec:inyeccion_fallos}), y se conservó el valor con el mayor recall entre los que mantenían una precisión de $1.000$: $\gamma = 0.05$.
+Los parámetros $\beta = 0.10$ y $\tau_{\min} = 7$~mg/dL se mantuvieron fijos, con la motivación clínica descrita en esta sección, y la selección empírica se hizo sobre $\gamma$. Se probaron $\gamma = 0$, $0.05$, $0.10$ y $0.15$ con la CNN-LSTM sobre el conjunto de prueba sintético (Sección~\ref{subsec:inyeccion_fallos}), y se conservó el valor con el mayor recall entre los que mantenían una precisión de $1.000$: $\gamma = 0.05$.
 
-Con $\gamma = 0$ el umbral queda en $\max(\tau_{\min},\, \beta\,G_{\mathrm{ref}}(k))$ y los falsos positivos reaparecen durante las excursiones rápidas, como anticipa la interpretación de $\gamma$ (Sección~\ref{subsec:interpretacion_parametros}). Con $\gamma = 0.15$ la precisión se mantiene en $1.000$ y el recall baja. Son resultados exploratorios, de una sola arquitectura. Como $\gamma$ se eligió sobre el mismo conjunto sintético con el que se evalúa el Capítulo~\ref{cap:resultados}, la prueba fuera de muestra de estos parámetros es la validación en OhioT1DM (Sección~\ref{sec:validacion_ohio}), donde se aplicaron sin modificación.
+Con $\gamma = 0$ el umbral queda en $\max(\tau_{\min},\, \beta\,G_{\mathrm{ref}}(k))$ y los falsos positivos reaparecen durante las excursiones rápidas, como anticipa la interpretación de $\gamma$ mencionada anteriormente. Con $\gamma = 0.15$ la precisión se mantiene en $1.000$ y el recall baja. Son resultados exploratorios, de una sola arquitectura. Como $\gamma$ se eligió sobre el mismo conjunto sintético con el que se evalúa el Capítulo~\ref{cap:resultados}, la prueba fuera de muestra de estos parámetros es la validación en OhioT1DM (Sección~\ref{sec:validacion_ohio}), donde se aplicaron sin modificación.
 
 \subsubsection{Integración con el algoritmo de detección}
 \label{subsec:integracion_algoritmo}
@@ -1222,11 +1222,11 @@ Para responder la pregunta de la Sección~\ref{subsec:motivacion_pipeline} se ev
     {\footnotesize $\bullet$ Combinaciones diagonales (detector = imputador) \quad $\circ$ Combinaciones cruzadas}
 \end{table}
 
-Las cuatro combinaciones de la diagonal, en las que detector e imputador comparten arquitectura, equivalen al pipeline unificado de la Sección~\ref{sec:deteccion_fallos} con umbral adaptativo. Sirven como punto de comparación para las doce combinaciones cruzadas: si una combinación cruzada mejora a su contraparte diagonal, la mejora se puede atribuir al desacople.
+Las cuatro combinaciones de la diagonal, en las que detector e imputador comparten arquitectura, reproducen el pipeline unificado de la Sección~\ref{sec:deteccion_fallos} con umbral adaptativo. Las detecciones coinciden, y las métricas de imputación difieren a lo sumo en centésimas por detalles de implementación, como el punto de partida del suavizado durante las ráfagas de ruido (Algoritmos~\ref{alg:deteccion_imputacion} y~\ref{alg:pipeline}). La diagonal sirve como punto de comparación para las doce combinaciones cruzadas: si una combinación cruzada mejora a su contraparte diagonal, la mejora se puede atribuir al desacople.
 
-Se evaluaron las dieciséis combinaciones, y no solo la diagonal o un subconjunto elegido de antemano, para no sesgar la comparación hacia las combinaciones que parecían prometedoras y para poder medir si las dos etapas son realmente independientes (Sección~\ref{subsec:acoplamiento_pipeline}).
+Evaluar las dieciséis configuraciones, y no solo la diagonal o un subconjunto elegido de antemano, evita sesgar la comparación hacia las combinaciones que parecían prometedoras. También permite medir si las dos etapas son independientes entre sí (Sección~\ref{subsec:acoplamiento_pipeline}).
 
-Cada una de las dieciséis combinaciones se evalúa utilizando las cinco redes entrenadas de manera independiente para cada arquitectura (Sección~\ref{subsec:reproducibilidad}). Las redes se emparejan por índice de corrida: la $i$-ésima red del detector opera junto a la $i$-ésima red del imputador, produciendo cinco realizaciones del pipeline por combinación. Los resultados se reportan, como en el resto del trabajo, en términos de la media $\pm$ una desviación estándar sobre estas cinco realizaciones.
+Cada combinación se evalúa con las cinco redes entrenadas de manera independiente para cada arquitectura (Sección~\ref{subsec:reproducibilidad}). Las redes se emparejan por índice de corrida: la $i$-ésima red del detector opera junto a la $i$-ésima red del imputador, de modo que cada combinación tiene cinco realizaciones del pipeline. Los resultados se reportan, como en el resto del trabajo, en términos de la media $\pm$ una desviación estándar sobre estas cinco realizaciones.
 
 \subsection{Independencia y acoplamiento entre las etapas}
 \label{subsec:acoplamiento_pipeline}
@@ -1448,7 +1448,7 @@ Este capítulo va de la configuración más simple a la evaluación más cercana
 \section{Resultados de entrenamiento}
 \label{sec:resultados_entrenamiento}
 
-Las cuatro arquitecturas evaluadas en esta tesis (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) se entrenaron con la misma configuración de la primera etapa~\cite{sanchez2025imputation}: optimizador Adam con tasa de aprendizaje $\eta = 0.001$, regularización L2 con $\lambda = 10^{-3}$, mini-lotes de 32 muestras, máximo de 300 épocas y parada anticipada (\textit{early stopping}) con paciencia de 30 épocas sin mejora en la pérdida de validación. Para evaluar la estabilidad ante distintas condiciones iniciales, cada arquitectura fue entrenada cinco veces con semillas aleatorias independientes $\{42,\, 100,\, 2024,\, 7,\, 1337\}$.
+Las cuatro arquitecturas evaluadas en esta tesis (CNN-LSTM, GRU, 1D-CNN y Transformer-LSTM) se entrenaron con la misma configuración de la primera etapa~\cite{sanchez2025imputation}: optimizador Adam con tasa de aprendizaje $\eta = 0.001$, regularización L2 con $\lambda = 10^{-3}$, mini-lotes de 32 muestras, máximo de 300 épocas y parada anticipada (\textit{early stopping}) con paciencia de 30 evaluaciones sin mejora en la pérdida de validación. Para evaluar la estabilidad ante distintas condiciones iniciales, cada arquitectura fue entrenada cinco veces con semillas aleatorias independientes $\{42,\, 100,\, 2024,\, 7,\, 1337\}$.
 
 La Tabla~\ref{tab:training_mse} reporta el MSE mínimo de validación obtenido
 en cada uno de los cinco entrenamientos, junto con la media y la desviación
@@ -1643,9 +1643,9 @@ En el Transformer-LSTM, la desviación de la precisión pasa de $0.089$ a $0.000
 
 \subsection*{Efecto sobre la imputación}
 
-Las métricas MAE y RMSE son idénticas a las del umbral fijo en todas las arquitecturas. Este resultado es consecuencia directa del diseño del pipeline unificado: el umbral únicamente determina si una muestra se clasifica como fallo o no; el valor imputado, cuando se activa la imputación, es siempre la predicción $\hat{g}(k)$ del modelo, independientemente de qué umbral la activó. Por tanto, cualquier muestra que era correctamente imputada bajo el umbral fijo lo sigue siendo bajo el umbral adaptativo, y viceversa.
+Las métricas MAE y RMSE son idénticas a las del umbral fijo en todas las arquitecturas. Se calculan con D1, sobre la predicción de la red en todas las muestras (Sección~\ref{subsec:metricas_regresion}), y esa predicción es la misma con cualquiera de los dos umbrales, porque el umbral solo decide qué muestras se sustituyen en la salida.
 
-El MARD, sin embargo, mejora de forma consistente en todas las arquitecturas (GRU: $-0.111$\,pp; Transformer-LSTM: $-0.074$\,pp; CNN-LSTM: $-0.026$\,pp; 1D-CNN: $-0.020$\,pp). Esta mejora, aparentemente contradictoria con la invarianza de MAE y RMSE, se explica por la naturaleza relativa del MARD: al eliminarse los falsos positivos, el sistema ya no imputa muestras que en realidad son correctas, evitando así introducir sustituciones en regiones de glucosa baja donde el error relativo es mayor. El efecto es sutil pero sistemático y consistente en las cuatro arquitecturas.
+El MARD y el R$^2$, en cambio, se calculan sobre la salida $g_{\mathrm{final}}(k)$, y ahí el umbral sí influye. Con umbral fijo, cada falso positivo reemplaza una lectura limpia, que en la señal sintética coincide con la referencia, por una estimación del modelo que sí tiene error. Al eliminarse los falsos positivos, esas muestras conservan la lectura y el MARD baja en las cuatro arquitecturas (GRU: $-0.111$; Transformer-LSTM: $-0.074$; CNN-LSTM: $-0.026$; 1D-CNN: $-0.020$ puntos porcentuales). Las dos mayores reducciones corresponden a las redes con menor precisión bajo umbral fijo, la GRU (0.921) y la Transformer-LSTM (0.891). Por la misma razón, el R$^2$ de la GRU sube de 0.857 a 0.874.
 
 \subsection*{Rol del componente de tasa de cambio}
 
@@ -1814,21 +1814,21 @@ El análisis anterior no arroja un único ganador, sino dos configuraciones no d
 
 \begin{itemize}
   \item \textbf{GRU\,$\rightarrow$\,GRU}: mejor $F_1$ de detección ($0.884$) y menor MAE de imputación ($2.92$~mg/dL). Recomendada cuando se prioriza el error absoluto.
-  \item \textbf{GRU\,$\rightarrow$\,1D-CNN}: mejor $F_1$ de detección ($0.884$) junto con el mejor RMSE ($3.82$~mg/dL), el mejor $R^2$ ($0.9787$) y el mejor D3 ($5.37$~mg/dL).   Recomendada cuando se prioriza la calidad de reconstrucción global.
+  \item \textbf{GRU\,$\rightarrow$\,1D-CNN}: mejor $F_1$ de detección ($0.884$) junto con el mejor RMSE ($3.82$~mg/dL), y, entre las combinaciones con detector GRU, el mejor $R^2$ ($0.9787$) y el mejor D3 ($5.37$~mg/dL). Recomendada cuando se prioriza la calidad de reconstrucción global.
 \end{itemize}
 
 La elección entre ambas depende del criterio de imputación que se priorice: minimizar el error medio favorece GRU\,$\rightarrow$\,GRU, mientras que privilegiar la fidelidad de la señal reconstruida y la robustez frente a errores grandes favorece GRU\,$\rightarrow$\,1D-CNN. La Figura~\ref{fig:44-frente} sitúa las 16 combinaciones en el plano detección–imputación y resalta ambas configuraciones.
 
-\begin{figure}[htbp]
+\begin{figure}[H] %htbp
 \centering
 \includegraphics[width=\textwidth]{figures/fig_4_4_pareto_F1_RMSE.eps}
-\caption{Las 16 combinaciones detector\,$\times$\,imputador en el plano $F_1$ (detección) frente a MAE (imputación, D1). La estructura de rejilla evidencia la independencia entre módulos. Se resaltan las configuraciones co-óptimas GRU\,$\rightarrow$\,GRU y GRU\,$\rightarrow$\,1D-CNN.}
+\caption{Las 16 combinaciones detector\,$\times$\,imputador en el plano $F_1$ (detección) frente a RMSE (imputación, D1). La estructura de rejilla evidencia la independencia entre módulos. Se resaltan las configuraciones co-óptimas GRU\,$\rightarrow$\,GRU y GRU\,$\rightarrow$\,1D-CNN.}
 \label{fig:44-frente}
 \end{figure}
 
 Este contraste numérico se puede llevar a una traza concreta: la Figura~\ref{fig:reconstruccion_gru} compara, sobre los mismos episodios de fallo detectado del conjunto de prueba, la señal que reconstruye cada configuración co-óptima.
 
-\begin{figure}[!htb]
+\begin{figure}[H] %!htb
     \centering
     \includegraphics[width=\textwidth]{figures/fig_reconstruccion_GRUGRU_vs_GRU1DCNN.eps}
     \caption{Reconstrucción de la señal CGM para las dos configuraciones co-óptimas, que comparten detector (GRU) y difieren solo en el imputador. Arriba, ventana de contexto de 56 a 72\,h del conjunto de prueba, con el recuadro punteado indicando la región ampliada abajo. Abajo, acercamiento a 61.5--66.4\,h. Las franjas de fondo marcan los episodios de fallo detectado dentro de esta ventana: rosa para desconexión del sensor, amarillo para ruido blanco. Fuera de esas franjas las cuatro curvas coinciden, porque la máscara de fallo detectado es idéntica para ambos imputadores. La corrida mostrada corresponde a la de las 5 semillas más cercana al promedio conjunto de F1 y MAE, para evitar seleccionar un caso favorable.}
@@ -1842,7 +1842,7 @@ La diferencia entre imputadores no es pareja entre los dos tipos de fallo. Duran
 
 La diagonal del pipeline desacoplado (detector = imputador) reproduce el esquema unificado de la Sección~\ref{sec:pipeline_unificado_adaptativo}. Al comparar cada detector con su mejor imputador posible, la reducción de MAE que aporta desacoplar es modesta: no supera el 15\,\% y en varios casos es inferior al 3\,\%. El mayor beneficio corresponde a Transformer-LSTM como detector, que pasa de $3.43$~mg/dL con su propio imputador a $2.92$~mg/dL al acoplarle GRU ($\approx 15$\,\%); para CNN-LSTM y 1D-CNN la mejora es de apenas $\approx 3$\,\%, y para GRU es nula, pues su propio imputador ya minimiza el MAE.
 
-La reducción de MAE es, por tanto, un beneficio menor. El valor de desacoplar está en la libertad de diseño: el esquema unificado solo alcanza la calidad de reconstrucción de 1D-CNN (RMSE $3.82$, $R^2 \approx 0.98$, D3 $\approx 5.4$~mg/dL) usándolo también como detector, lo que obliga a aceptar el peor $F_1$ ($0.785$). El pipeline desacoplado permite acoplar ese imputador al mejor detector, la GRU ($F_1 = 0.884$), una combinación que el esquema unificado no puede formar.
+La reducción de MAE es, por tanto, un beneficio menor. El valor de desacoplar está en la libertad de diseño: el esquema unificado solo alcanza la calidad de reconstrucción de 1D-CNN (RMSE $3.82$, $R^2 \approx 0.98$, D3 $\approx 5.6$~mg/dL) usándolo también como detector, lo que obliga a aceptar el peor $F_1$ ($0.785$). El pipeline desacoplado permite acoplar ese imputador al mejor detector, la GRU ($F_1 = 0.884$), una combinación que el esquema unificado no puede formar.
 
 % ============================================================
 %  SECCIÓN 4.5
@@ -1944,24 +1944,24 @@ Se usan las dos definiciones de error de la Sección~\ref{sec:pipeline-desacopla
  
 En D1, GRU\,$\rightarrow$\,GRU obtiene 11.39 $\pm$ 1.43~mg/dL y GRU\,$\rightarrow$\,1D-CNN 14.81 $\pm$ 1.22~mg/dL, frente a 3.55 $\pm$ 0.84~mg/dL de la persistencia. El orden entre las dos configuraciones se repite en los tres pacientes, y en los tres ambas quedan por encima de la persistencia. En las desconexiones, D3 vale 126.90 $\pm$ 14.16 y 130.07 $\pm$ 14.94~mg/dL, contra 53.95 $\pm$ 8.76~mg/dL del LOCF. La diferencia entre configuraciones en D3 va de 2 a 9~mg/dL según el paciente y cambia de signo: es menor con GRU\,$\rightarrow$\,1D-CNN en el 540 y con GRU\,$\rightarrow$\,GRU en el 559 y el 596. Con datos de Sorensen, GRU\,$\rightarrow$\,1D-CNN reconstruía las muestras con fallo con un error de 5.4~mg/dL frente a 14.3~mg/dL de GRU\,$\rightarrow$\,GRU (Tabla~\ref{tab:44-mae-d3}); en Ohio esa ventaja no aparece en ninguno de los dos tipos de fallo (Tabla~\ref{tab:ohio_imputacion}).
 
-La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Las curvas de color aparecen solo donde el detector señaló una muestra. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella cuando el sensor reanuda la lectura; los tramos cortos de color fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}), y los huecos reales, en gris, también se imputan pero, sin referencia, no entran en el error.
+La Figura~\ref{fig:ohio_ventanas} muestra la ventana completa de cada paciente. Dentro de las franjas rosas las salidas se separan de la referencia y regresan a ella cuando el sensor reanuda la lectura; la separación es mayor en la desconexión larga de cada paciente que en la corta. En las franjas amarillas, en cambio, apenas se alejan de la referencia. Los tramos cortos de color que aparecen fuera de las franjas son falsas alarmas (Sección~\ref{subsec:ohio_deteccion}). Los huecos reales también se imputan, pero sin referencia no entran en el error.
  
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig_ohio_reconstruccion_ventanas.eps}
+    \includegraphics[width=1.05\textwidth]{figures/fig_ohio_reconstruccion_episodios.eps}
     \caption{Reconstrucción de la señal en la ventana de 5 días de los pacientes (a)~540, (b)~559 y (c)~596, con las dos configuraciones co-óptimas. La línea negra es la referencia (lectura original del sensor) y la gris punteada, la lectura con fallo. Las curvas naranja (GRU\,$\rightarrow$\,GRU) y morada (GRU\,$\rightarrow$\,1D-CNN) son el promedio de las cinco redes y se dibujan solo en las muestras donde el pipeline sustituyó la lectura. Las franjas marcan la desconexión inyectada (rosa), el ruido blanco inyectado (amarillo) y los huecos reales del sensor (gris). El tiempo se mide en horas desde el inicio de la ventana.}
     \label{fig:ohio_ventanas}
 \end{figure}
  
 La Figura~\ref{fig:ohio_episodios} amplía el episodio más largo de cada tipo. En las tres desconexiones de 50 muestras (4.2~h, paneles a--c) la referencia sube hasta 322, 292 y 310~mg/dL en los pacientes 540, 559 y 596, mientras que las dos configuraciones parten de la última lectura válida (196, 191 y 218~mg/dL) y descienden. GRU\,$\rightarrow$\,GRU llega a mínimos de 71, 66 y 106~mg/dL, y GRU\,$\rightarrow$\,1D-CNN de 94, 96 y 96~mg/dL; esta última se estabiliza cerca de 100~mg/dL, mientras que la primera sigue bajando hasta el final del episodio en el paciente 559. Al reanudarse la lectura, la salida vuelve a la referencia con saltos de 80 a 128~mg/dL. La razón de este descenso se discute en el Capítulo~\ref{cap:discusion}.
  
-En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el error D3 (el error de la señal final en las muestras con ruido) de 4.7~mg/dL en ambas configuraciones, es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
+En las ráfagas de ruido (paneles d--f) la lectura se aparta de la referencia hasta 18.4, 17.7 y 12.2~mg/dL en los pacientes 540, 559 y 596, y el detector señala, en alguna de las 5 redes, 15, 4 y 5 de las 35 muestras de la ráfaga; la curva de color aparece únicamente en esas muestras. El umbral adaptativo promedia entre 13 y 15~mg/dL en esos tramos, por encima de la desviación media del ruido (4 a 5~mg/dL), y eso deja sin sustituir la mayoría de las muestras. Por eso el error D3 (el error de la señal final en las muestras con ruido) de 4.7~mg/dL en ambas configuraciones es del mismo orden que esa desviación: la salida es casi siempre la propia lectura.
 
 Sin reajuste, el pipeline casi no interviene en el ruido y queda lejos de la referencia en las desconexiones largas, donde el LOCF tiene menos error en todos los intervalos de tiempo. La Sección~\ref{subsec:ohio_sensibilidad} repite la medición con ruido de mayor amplitud.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig_ohio_reconstruccion_episodios.eps}
+    \includegraphics[width=\textwidth]{figures/fig_ohio_reconstruccion_ventanas.eps}
     \caption{Acercamiento a los episodios inyectados más largos de cada tipo en los pacientes 540 (columna izquierda), 559 (central) y 596 (derecha). Arriba, (a)--(c): desconexión de 50 muestras (4.2~h). Abajo, (d)--(f): ráfaga de ruido blanco de 35 muestras (2.9~h), que cae en las mismas muestras de los tres pacientes. Las curvas y las franjas son las de la Figura~\ref{fig:ohio_ventanas}; el tiempo se mide en horas desde el inicio de la ventana.}
     \label{fig:ohio_episodios}
 \end{figure}
@@ -2060,7 +2060,7 @@ En las muestras señaladas, la mediana del coeficiente $\alpha$ del suavizado (E
 \subsection{Datos sintéticos (Sorensen)}
 \label{subsec:clinico_sorensen}
 
-Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios: la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras marcadas como fallo) y la salida de cada pipeline, para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
+Se aplican los indicadores definidos en la Sección~\ref{subsec:metricas_clinicas} (Tabla~\ref{tab:rangos_clinicos}) a la señal sintética de Sorensen, sobre las dos configuraciones co-óptimas identificadas en la Sección~\ref{subsec:co-optimas}. Igual que en metodología, se calculan sobre tres escenarios: la referencia sin fallos, la señal sin imputar (excluyendo del cómputo las muestras con fallo inyectado) y la salida de cada pipeline, para aislar qué parte de cualquier cambio proviene de la imputación y no del fallo en sí. La Tabla~\ref{tab:clinico_sorensen} reporta los nueve indicadores.
 
 \begin{table}[!htb]
 \centering
@@ -2152,7 +2152,7 @@ Este capítulo interpreta los resultados del Capítulo~\ref{cap:resultados}. Emp
  
 La hipótesis (Sección~\ref{sec:hipotesis}) se refiere a los datos simulados: el umbral adaptativo y el pipeline desacoplado deberían superar al esquema unificado de umbral fijo, con menos falsos positivos y una reconstrucción más precisa. Con la señal de Sorensen se sostiene casi entera. La validación en OhioT1DM no forma parte de la hipótesis, pero responde a si esos resultados se trasladan a pacientes reales (Sección~\ref{sec:objetivos}), y ahí solo se mantuvo la detección de desconexiones.
  
-Sobre la señal simulada, el umbral adaptativo eliminó los falsos positivos: la precisión llegó a $1.000$ en las cuatro arquitecturas, contra $0.891$--$0.971$ con el umbral fijo, a cambio de entre $0.009$ y $0.016$ puntos de recall (Sección~\ref{sec:pipeline_unificado_adaptativo}). La reconstrucción mejoró en unas métricas y no en otras. Frente a CNN-LSTM con umbral fijo, el mejor detector de ese esquema, GRU\,$\rightarrow$\,1D-CNN sube el F1 de $0.863$ a $0.884$ y baja el RMSE de $5.99$ a $3.82$~mg/dL, pero su error medio absoluto queda igual ($3.00$ contra $2.99$~mg/dL). El menor de la tesis, $2.92$~mg/dL, es el de la GRU, y no cambia al desacoplarla (Sección~\ref{subsec:diagonal-vs-desacoplado}). Lo que aportó el desacoplamiento fue poder juntar el mejor detector con el imputador de menor RMSE. Estas comparaciones usan las corridas de esta tesis con umbral fijo (Sección~\ref{sec:pipeline_unificado_fijo}) y no las cifras publicadas de la primera etapa. Hay además una reserva sobre la precisión de $1.000$: $\gamma$, el peso que da el umbral a la velocidad de cambio de la glucosa, se eligió sobre el mismo conjunto de prueba, así que esa cifra no es del todo una medida fuera de muestra (Sección~\ref{sec:disc_limitaciones}).
+Sobre la señal simulada, el umbral adaptativo eliminó los falsos positivos: la precisión llegó a $1.000$ en las cuatro arquitecturas, contra $0.891$--$0.971$ con el umbral fijo, a cambio de entre $0.009$ y $0.016$ puntos de recall (Sección~\ref{sec:pipeline_unificado_adaptativo}). La reconstrucción mejoró en unas métricas y no en otras. Frente a CNN-LSTM con umbral fijo, el mejor detector de ese esquema, GRU\,$\rightarrow$\,1D-CNN sube el F1 de $0.863$ a $0.884$ y baja el RMSE de $5.99$ a $3.82$~mg/dL, pero su error absoluto medio queda igual ($3.00$ contra $2.99$~mg/dL). El menor de la tesis, $2.92$~mg/dL, es el de la GRU, y no cambia al desacoplarla (Sección~\ref{subsec:diagonal-vs-desacoplado}). Lo que aportó el desacoplamiento fue poder juntar el mejor detector con el imputador de menor RMSE. Estas comparaciones usan las corridas de esta tesis con umbral fijo (Sección~\ref{sec:pipeline_unificado_fijo}) y no las cifras publicadas de la primera etapa. Hay además una reserva sobre la precisión de $1.000$: $\gamma$, el peso que da el umbral a la velocidad de cambio de la glucosa, se eligió sobre el mismo conjunto de prueba, así que esa cifra no es del todo una medida fuera de muestra (Sección~\ref{sec:disc_limitaciones}).
  
 En OhioT1DM, lo que se mantuvo fue la detección de desconexiones. El detector señaló todas las muestras de desconexión inyectada y todos los huecos reales del sensor en los tres pacientes, con ruido de $\sigma$~=~5.6 y de 15~mg/dL (Secciones~\ref{subsec:ohio_deteccion} y~\ref{subsec:ohio_sensibilidad}). El desempeño, en cambio, no se conservó. El F1 bajó de $0.884$ a $0.702 \pm 0.087$, porque el umbral deja pasar la mayor parte del ruido de baja amplitud y produce falsas alarmas por encima de $250$~mg/dL (Sección~\ref{sec:disc_deteccion}). El error de predicción del imputador sobre todas las muestras subió de $2.92$ a $11.39 \pm 1.43$~mg/dL con GRU\,$\rightarrow$\,GRU, más de tres veces el de repetir la lectura anterior ($3.55 \pm 0.84$~mg/dL). Dentro de las desconexiones, mantener la última lectura válida tuvo menos error que la reconstrucción (Sección~\ref{sec:disc_imputacion}).
  
@@ -2245,7 +2245,7 @@ En los tres pacientes de OhioT1DM, los modelos aplicados sin reentrenar detectar
  
 La validación clínica mostró algo que las métricas de error no dejan ver. Cuando las desconexiones cayeron sobre excursiones de glucosa, la señal reconstruida acercó esos tramos al rango normal y el tiempo en rango subió entre 4 y 5 puntos respecto a la referencia, cerca de la diferencia que el consenso internacional considera clínicamente relevante en una persona~\cite{battelino2019}. Un imputador puede cambiar así la lectura clínica de un registro, y hacerlo en el sentido que más puede confundir: un control que parece mejor de lo que fue. Si un imputador de CGM se evalúa solo con MAE o RMSE, ese efecto queda fuera de la evaluación.
 
-La hipótesis (Sección~\ref{sec:hipotesis}) se sostiene en datos simulados, salvo en el error medio absoluto (MAE), que no mejora. En OhioT1DM, que la hipótesis no abarca, solo se mantuvo la detección de desconexiones (Sección~\ref{sec:disc_hallazgos}). Los cuatro objetivos específicos se completaron (Sección~\ref{sec:objetivos}), y la parte que no salió como se esperaba dejó un resultado concreto: el límite de un sistema entrenado con un solo paciente virtual cuando la glucosa real sale del rango que vio durante el entrenamiento.
+La hipótesis (Sección~\ref{sec:hipotesis}) se sostiene en datos simulados, salvo en el error absoluto medio (MAE), que no mejora. En OhioT1DM, que la hipótesis no abarca, solo se mantuvo la detección de desconexiones (Sección~\ref{sec:disc_hallazgos}). Los cuatro objetivos específicos se completaron (Sección~\ref{sec:objetivos}), y la parte que no salió como se esperaba dejó un resultado concreto: el límite de un sistema entrenado con un solo paciente virtual cuando la glucosa real sale del rango que vio durante el entrenamiento.
 
 % =================================================
 % SECCIÓN 6.2
@@ -2257,7 +2257,7 @@ Las aportaciones corresponden a las tres extensiones que la Sección~\ref{sec:pl
 
 El umbral adaptativo B+ROC (Sección~\ref{subsec:umbral_adaptativo}) escala la tolerancia con la glucosa predicha y la amplía cuando la glucosa cambia deprisa, para volver a su valor base cuando se estabiliza. Sigue la lógica de la norma ISO 15197, que tolera un error absoluto en hipoglucemia y uno relativo en el resto del rango: el término proporcional cubre lo segundo y el piso de 7~mg/dL lo primero. La referencia del umbral es la predicción de la red y no la lectura del sensor, para que un fallo no modifique el umbral que debe detectarlo. En datos simulados eliminó las falsas alarmas en las cuatro arquitecturas, con una pérdida de recall de 0.016 como máximo, sin modificar las redes: lo que cambia es la regla con la que se decide si una muestra tiene un fallo. Como solo necesita una predicción y el historial reciente de la señal, puede aplicarse a cualquier detector basado en el error de un modelo. Falta medir su efecto frente al umbral fijo sobre datos reales.
 
-En el pipeline desacoplado (Sección~\ref{sec:pipeline_desacoplado}), lo que más aporta es la evaluación de las dieciséis combinaciones entre detector e imputador. Mostró que el F1 depende solo del detector, mientras el MAE y el RMSE dependen solo del imputador, sin interacción entre ellos; en las métricas calculadas sobre la señal de salida, como $R^2$ y MARD, la dependencia que queda aparece en la tercera o cuarta cifra decimal (Sección~\ref{subsec:independencia}). Esa independencia sale de la estructura del pipeline, no de las arquitecturas probadas, de modo que cada etapa puede elegirse o sustituirse por separado. Aquí permitió unir el mejor detector, la GRU, con el imputador de menor RMSE, 1D-CNN, una combinación que el esquema unificado no puede formar. La ganancia en el error medio absoluto fue pequeña.
+En el pipeline desacoplado (Sección~\ref{sec:pipeline_desacoplado}), lo que más aporta es la evaluación de las dieciséis combinaciones entre detector e imputador. Mostró que el F1 depende solo del detector, mientras el MAE y el RMSE dependen solo del imputador, sin interacción entre ellos; en las métricas calculadas sobre la señal de salida, como $R^2$ y MARD, queda una dependencia pequeña que no cambia el orden entre imputadores (Sección~\ref{subsec:independencia}). Esa independencia sale de la estructura del pipeline, no de las arquitecturas probadas, de modo que cada etapa puede elegirse o sustituirse por separado. Aquí permitió unir el mejor detector, la GRU, con el imputador de menor RMSE, 1D-CNN, una combinación que el esquema unificado no puede formar. La ganancia en el error absoluto medio fue pequeña.
 
 Para la tercera extensión hubo que armar un protocolo con el que un modelo entrenado en datos simulados pudiera evaluarse sobre registros de OhioT1DM (Sección~\ref{subsec:datos_reales}). Los eventos de insulina y de comida se convierten en las señales continuas que la red vio durante el entrenamiento, mediante los submodelos de absorción del modelo de Sorensen; el factor de escala de los carbohidratos se calcula con la parte del registro que queda fuera de la ventana evaluada. Sobre el registro real se inyectan fallos sintéticos, y la lectura original del sensor sirve de referencia, de manera que el error de imputación puede medirse aunque los huecos naturales no tengan glucosa con qué compararse. Dos comparadores sin entrenamiento acompañan a la red: repetir la lectura anterior y mantener la última lectura válida durante el fallo. Fueron estos los que mostraron que, en las desconexiones largas, la reconstrucción tenía más error que la opción más simple (Sección~\ref{sec:disc_imputacion}).
  

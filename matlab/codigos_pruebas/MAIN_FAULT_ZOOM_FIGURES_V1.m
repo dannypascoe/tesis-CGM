@@ -243,14 +243,15 @@ title(ax2, sprintf('Zoom: %.2f - %.2f h', t_h(k_zoom_ini), t_h(k_zoom_fin)), ...
     'FontSize', 12, 'FontWeight', 'bold');
 
 % Leyenda compartida (una sola, fuera de ambos paneles)
-lgd = legend(ax1, 'Orientation', 'horizontal', 'FontSize', 11);
+lgd = legend(ax1, 'Orientation', 'horizontal', 'FontSize', 12);
 lgd.Layout.Tile = 'north';
+lgd.Box = 'off';  % Quitar el recuadro de la leyenda
 
 % title(tlo, 'Reconstruccion de señal CGM: GRU \rightarrow GRU vs GRU \rightarrow 1D-CNN', ...
 %     'FontSize', 14, 'FontWeight', 'bold');
-title(tlo, 'Reconstruccion de señal CGM', 'FontSize', 14, 'FontWeight', 'bold');
+%title(tlo, 'Reconstruccion de señal CGM', 'FontSize', 14, 'FontWeight', 'bold');
 
-exportgraphics(fig, archivo_fig, 'ContentType', 'vector');
+%exportgraphics(fig, archivo_fig, 'ContentType', 'vector');
 fprintf('\nFigura guardada en: %s\n', archivo_fig);
 
 
@@ -294,9 +295,9 @@ function dibujar_panel_senales(ax, t_h, k_ini, k_fin, g_real, g_crudo, g_gg, g_g
 
     % --- Señales ---
     plot(ax, t_h(idx), g_real(idx),  '-',  'Color', [0.15 0.15 0.15], 'LineWidth', 1.8, ...
-        'DisplayName', 'Señal real (referencia)');
+        'DisplayName', 'Referencia');
     plot(ax, t_h(idx), g_crudo(idx), ':',  'Color', [0.55 0.55 0.55], 'LineWidth', 1.6, ...
-        'DisplayName', 'Señal cruda (con fallo)');
+        'DisplayName', 'Lectura con fallo');
     plot(ax, t_h(idx), g_gg(idx),    '-',  'Color', [0.90 0.45 0.00], 'LineWidth', 1.8, ...
         'DisplayName', 'GRU \rightarrow GRU');
     plot(ax, t_h(idx), g_g1(idx),    '--', 'Color', [0.49 0.18 0.56], 'LineWidth', 1.8, ...
@@ -304,7 +305,7 @@ function dibujar_panel_senales(ax, t_h, k_ini, k_fin, g_real, g_crudo, g_gg, g_g
 
     xlim(ax, [t_h(idx(1)) t_h(idx(end))]);
     ylim(ax, ylims_data);
-    xlabel(ax, 'Tiempo (horas)',  'FontSize', 12, 'FontWeight', 'bold');
-    ylabel(ax, 'Glucosa (mg/dL)', 'FontSize', 12, 'FontWeight', 'bold');
+    xlabel(ax, 'Tiempo (horas)',  'FontSize', 13, 'FontWeight', 'bold');
+    ylabel(ax, 'Glucosa (mg/dL)', 'FontSize', 13, 'FontWeight', 'bold');
     set(ax, 'FontSize', 11);
 end

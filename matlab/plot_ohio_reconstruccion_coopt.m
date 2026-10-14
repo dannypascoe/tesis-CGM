@@ -54,8 +54,8 @@ min_gap_samples = 20;                 % huecos reales mas cortos no se dibujan e
 
 xlab_time = 'Tiempo (horas)';         % etiqueta del eje X (mismo estilo que la figura de 4.4);
                                       % el pie de figura aclara: desde el inicio de la ventana
-legend_fs = 10;                        % tamano de letra de la leyenda (prueba 10 u 11 si hace falta)
-axis_label_fs   = 11;                 % tamano del texto de las etiquetas de los ejes (no los numeros);
+legend_fs = 11;                        % tamano de letra de la leyenda (prueba 10 u 11 si hace falta)
+axis_label_fs   = 12;                 % tamano del texto de las etiquetas de los ejes (no los numeros);
                                       % 11 es el que MATLAB usaba por defecto con ejes de tamano 10
 axis_label_bold = true;              % true: etiquetas de los ejes en negritas
                                       % (las letras (a), (b), ... van siempre en negritas)

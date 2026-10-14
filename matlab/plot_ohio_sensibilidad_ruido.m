@@ -49,8 +49,8 @@ burst_k     = 1;                       % 1 = primera rafaga de ruido, 2 = segund
 ctx_episode = 18;                      % muestras de contexto a cada lado de la rafaga (1.5 h)
 
 xlab_time       = 'Tiempo (horas)';
-legend_fs       = 10;
-axis_label_fs   = 11;
+legend_fs       = 11;
+axis_label_fs   = 12;
 axis_label_bold = true;
 letters         = 'abcdef';
 show_col_titles = true;                % 'Paciente NNN' como titulo de cada columna
